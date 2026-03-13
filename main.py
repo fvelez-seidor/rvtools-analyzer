@@ -112,9 +112,17 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
         "SECURITY",
         "STORAGE",
         "USB",
+        "CPU",
     ]
 
     if vhealth is not None:
+        message = False
+        try:
+            vhealth["Message"] = vhealth["Message"].astype(str)
+            message = True
+        except Exception:
+            print("No existe la columna 'Message', se omite este análisis.")
+
         vhealth["Message type"] = vhealth["Message type"].astype(str)
 
         # Detectar todos los tipos de problemas automáticamente
@@ -125,26 +133,42 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
                 continue
             key = msg_type.lower().replace(" ", "_")
 
-            anomalies[key] = group[["Name", "Message type"]].to_dict("records")
+            anomalies[key] = (
+                group[["Name", "Message", "Message type"]].to_dict("records")
+                if message
+                else group[["Name", "Message type"]].to_dict("records")
+            )
 
         # Detectar CDROMs conectados
         if "CDROM" in vhealth.columns:
             cdrom = vhealth[
                 vhealth["CDROM"].str.contains("connected", case=False, na=False)
             ]
-            anomalies["cdrom_connected"] = cdrom[["Name", "CDROM"]].to_dict("records")
+            anomalies["cdrom_connected"] = (
+                cdrom[["Name", "Message", "CDROM"]].to_dict("records")
+                if message
+                else cdrom[["Name", "CDROM"]].to_dict("records")
+            )
 
         # Detectar VMware Tools desactualizados o no instalados
         if "Tools" in vhealth.columns:
             tools = vhealth[
                 vhealth["Tools"].str.contains("old|not installed", case=False, na=False)
             ]
-            anomalies["vmtools_issue"] = tools[["Name", "Tools"]].to_dict("records")
+            anomalies["vmtools_issue"] = (
+                tools[["Name", "Message", "Tools"]].to_dict("records")
+                if message
+                else tools[["Name", "Tools"]].to_dict("records")
+            )
 
         # Detectar VMs zombies
         if "Zombie" in vhealth.columns:
             zombies = vhealth[vhealth["Zombie"].astype(str) != "0"]
-            anomalies["zombies"] = zombies[["Name", "Zombie"]].to_dict("records")
+            anomalies["zombies"] = (
+                zombies[["Name", "Message", "Zombie"]].to_dict("records")
+                if message
+                else zombies[["Name", "Zombie"]].to_dict("records")
+            )
 
 
 # --------- Detección de anomalías en vPartition ---------
@@ -169,7 +193,9 @@ def check_vpartition(CURRENT_FILE, load_sheet, anomalies):
         # Filtrar particiones con menos del 10% de espacio libre
         low = vpartition[vpartition["Free %"] < 10]
 
-        anomalies["low_disk_space"] = low[["VM", "Free %"]].to_dict("records")
+        anomalies["low_disk_space"] = low[
+            ["VM", "Disk", "Free %", "Annotation"]
+        ].to_dict("records")
 
 
 # --------- Comparación con estado previo ---------
@@ -237,31 +263,34 @@ def export_markdown(output_file, anomalies):
     """
     Genera un reporte completo en formato Markdown con todas las anomalías.
 
-    Incluye resumen y detalle de cada tipo de anomalía encontrada.
+    Incluye resumen y detalle de cada tipo de anomalía encontrada en tablas.
 
     Args:
         output_file (str): Ruta del archivo Markdown a generar
         anomalies (dict): Diccionario con todas las anomalías detectadas
     """
     md = f"# {ISSUE_CONFIG['title']}\n\n"
-    md += f"**Generado:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-    md += "**Tipo de Reporte:** Todas las anomalías actuales\n\n"
+    md += f"**Fecha de Generación:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    md += f"**Generado por:** {ISSUE_CONFIG['generated_by']}\n\n"
 
     total_issues = sum(len(v) for v in anomalies.values())
-    md += "## Resumen\n\n"
-    md += f"**Total de anomalías detectadas:** {total_issues}\n\n"
 
-    # Resumen por tipo
+    md += "## Resumen de Anomalías\n\n"
+    md += "| Categoría | Cantidad |\n"
+    md += "| --- | --- |\n"
+
+    # Resumen por tipo en tabla
     for issue_type, items in anomalies.items():
-        md += f"- {issue_type.upper()}: {len(items)}\n"
+        md += f"| {issue_type.upper()} | {len(items)} |\n"
 
-    md += "\n---\n\n"
+    md += f"\n**Total General:** {total_issues} anomalías detectadas\n\n"
+    md += "---\n\n"
+
     md += "## Detalle de Anomalías\n\n"
 
     # Detalle de cada anomalía
     for issue_type, items in anomalies.items():
         md += format_issue_for_markdown(issue_type, items)
-        md += "---\n\n"
 
     with open(output_file, "w") as f:
         f.write(md)
@@ -269,7 +298,7 @@ def export_markdown(output_file, anomalies):
 
 def format_issue_for_markdown(issue_type, items):
     """
-    Formatea un tipo de anomalía en formato Markdown.
+    Formatea un tipo de anomalía en formato Markdown usando tabla.
 
     Args:
         issue_type (str): Tipo de anomalía
@@ -279,14 +308,37 @@ def format_issue_for_markdown(issue_type, items):
         str: Texto en formato Markdown
     """
     if not items:
-        return f"### {issue_type.upper()}\n\nNo se detectaron anomalías.\n\n"
+        return f"#### {issue_type.upper()}\n\nSin anomalías detectadas.\n\n"
 
-    md = f"### {issue_type.upper()} ({len(items)})\n\n"
+    md = f"#### {issue_type.upper()} ({len(items)})\n\n"
 
-    for idx, item in enumerate(items, 1):
-        # Listar los detalles de cada anomalía
-        for key, value in item.items():
-            md += f"- {key}: {value}\n"
+    if items:
+        # Obtener todas las columnas de los items
+        all_columns = set()
+        for item in items:
+            all_columns.update(item.keys())
+        
+        # Reorganizar columnas: primero las básicas, luego Message si existe, luego Annotation si existe
+        priority_order = ["Name", "VM", "Disk", "Free %", "Tools", "Zombie", "CDROM", "Message type", "Message", "Annotation"]
+        columns = []
+        
+        for col in priority_order:
+            if col in all_columns:
+                columns.append(col)
+                all_columns.remove(col)
+        
+        # Agregar cualquier columna restante al final
+        columns.extend(sorted(all_columns))
+
+        # Crear encabezado de tabla
+        md += "| " + " | ".join(columns) + " |\n"
+        md += "| " + " | ".join(["---"] * len(columns)) + " |\n"
+
+        # Agregar datos en filas
+        for item in items:
+            values = [str(item.get(col, "")).replace("\n", " ") for col in columns]
+            md += "| " + " | ".join(values) + " |\n"
+
         md += "\n"
 
     return md
@@ -333,9 +385,10 @@ def main():
 
     # --------- Guardar estado actual para futuras comparaciones ---------
 
-    if os.path.exists(OUTPUT_FILE):
+    # Verificar si el archivo de estado previo existe y preguntar antes de sobrescribir
+    if os.path.exists(PREVIOUS_STATE):
         overwrite = input(
-            f"El archivo {OUTPUT_FILE} ya existe. ¿Desea sobrescribirlo? (s/n): "
+            f"El archivo {PREVIOUS_STATE} ya existe. ¿Desea sobrescribirlo? (s/n): "
         ).lower()
         if overwrite == "s":
             save_current(anomalies)
