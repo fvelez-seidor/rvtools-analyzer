@@ -14,9 +14,11 @@ Características principales:
 - Mantiene historial de estado para comparaciones futuras
 """
 
+import argparse
 import pandas as pd
 import json
 import os
+import sys
 from datetime import datetime
 
 # Directorio de salida para reportes
@@ -70,14 +72,15 @@ def load_previous():
     return {}
 
 
-def save_current(state):
+def save_current(state, state_file=PREVIOUS_STATE):
     """
     Guarda el estado actual en archivo JSON para futuras comparaciones.
 
     Args:
         state (dict): Diccionario con el estado actual de anomalías
+        state_file (str): Ruta del archivo JSON de estado.
     """
-    with open(PREVIOUS_STATE, "w") as f:
+    with open(state_file, "w") as f:
         json.dump(state, f, indent=2)
 
 
@@ -243,15 +246,21 @@ def export_xls(OUTPUT_FILE, new_anomalies):
     """
     writer = pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl")
 
-    for k, v in new_anomalies.items():
-        if v:
-            df = pd.DataFrame(v)
-        else:
-            df = pd.DataFrame({"info": ["No new issues"]})
+    if not new_anomalies:
+        # Asegurarse de que el workbook tenga al menos una hoja visible
+        pd.DataFrame({"info": ["No new issues"]}).to_excel(
+            writer, sheet_name="summary", index=False
+        )
+    else:
+        for k, v in new_anomalies.items():
+            if v:
+                df = pd.DataFrame(v)
+            else:
+                df = pd.DataFrame({"info": ["No new issues"]})
 
-        # Limitar nombre de hoja a 31 caracteres (límite de Excel)
-        sheet = k[:31]
-        df.to_excel(writer, sheet_name=sheet, index=False)
+            # Limitar nombre de hoja a 31 caracteres (límite de Excel)
+            sheet = k[:31]
+            df.to_excel(writer, sheet_name=sheet, index=False)
 
     writer.close()
 
@@ -349,53 +358,119 @@ def main():
     Función principal que ejecuta el flujo completo del análisis.
 
     Proceso:
-    1. Solicita ruta del archivo RVTools (o usa predeterminado)
+    1. Toma ruta del archivo RVTools desde argumentos de línea de comandos (o usa predeterminado)
     2. Carga datos y detecta anomalías
     3. Compara con estado anterior para identificar nuevas anomalías
     4. Exporta resultados a Excel y Markdown
     5. Guarda estado actual para futuras comparaciones
     6. Muestra resumen en consola
     """
-    # --------- Solicitar entrada del usuario ---------
+    parser = argparse.ArgumentParser(description="Analiza reportes RVTools y detecta anomalías")
 
-    CURRENT_FILE = str(
-        input("Ingrese la ruta del archivo RVTools (defecto: RVTools_export.xlsx): ")
-        or "RVTools_export.xlsx"
+    parser.add_argument(
+        "file",
+        nargs="?",
+        default="RVTools_export.xlsx",
+        help="Ruta al archivo RVTools (XLSX).",
     )
 
-    more_info = (
-        input(
-            "¿Desea ver detalles adicionales de las anomalías en consola? (s/n, defecto: n): "
-        ).lower()
-        or "n"
+    parser.add_argument(
+        "--more-info",
+        "-i",
+        action="store_true",
+        help="Mostrar detalles completos de anomalías en consola.",
     )
 
-    # --------- Cargar datos y detectar anomalías ---------
+    parser.add_argument(
+        "--overwrite",
+        "-y",
+        action="store_true",
+        help="Sobrescribir estado previo sin pedir confirmación.",
+    )
+
+    parser.add_argument(
+        "--output",
+        "-o",
+        default=OUTPUT_FILE,
+        help="Ruta de salida del reporte Excel.",
+    )
+
+    parser.add_argument(
+        "--state",
+        default=PREVIOUS_STATE,
+        help="Ruta del archivo de estado previo JSON.",
+    )
+
+    parser.add_argument(
+        "--markdown",
+        default=os.path.join(OUTPUT_DIR, "current_issues.md"),
+        help="Ruta del reporte Markdown generado.",
+    )
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
+    parser.add_argument(
+        "--more-info",
+        "-i",
+        action="store_true",
+        help="Mostrar detalles completos de anomalías en consola.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        "-y",
+        action="store_true",
+        help="Sobrescribir estado previo sin pedir confirmación.",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        default=OUTPUT_FILE,
+        help="Ruta de salida del reporte Excel.",
+    )
+    parser.add_argument(
+        "--state",
+        default=PREVIOUS_STATE,
+        help="Ruta del archivo de estado previo JSON.",
+    )
+    parser.add_argument(
+        "--markdown",
+        default=os.path.join(OUTPUT_DIR, "current_issues.md"),
+        help="Ruta del reporte Markdown generado.",
+    )
+
+    args = parser.parse_args()
+
+    CURRENT_FILE = args.file
+    more_info = args.more_info
+    output_file = args.output
+    previous_state_file = args.state
+    markdown_file = args.markdown
+
     check_vhealth(CURRENT_FILE, load_sheet, anomalies)
     check_vpartition(CURRENT_FILE, load_sheet, anomalies)
 
-    # --------- Comparar con estado previo y exportar ---------
+    # Leer estado previo según argumento si existe
+    global prev_state
+    if previous_state_file != PREVIOUS_STATE:
+        # support custom state path without updating global constant permanently
+        if os.path.exists(previous_state_file):
+            with open(previous_state_file, "r") as f:
+                prev_state = json.load(f)
+        else:
+            prev_state = {}
+
     new_anomalies = compare_previous(prev_state, anomalies)
-    export_xls(OUTPUT_FILE, new_anomalies)
+    export_xls(output_file, new_anomalies)
 
-    # --------- Exportar reporte en Markdown ---------
-    MD_REPORT = os.path.join(OUTPUT_DIR, "current_issues.md")
-    export_markdown(MD_REPORT, anomalies)
-    print(f"Reporte Markdown: {MD_REPORT}")
+    export_markdown(markdown_file, anomalies)
+    print(f"Reporte Markdown: {markdown_file}")
 
-    # --------- Guardar estado actual para futuras comparaciones ---------
-
-    # Verificar si el archivo de estado previo existe y preguntar antes de sobrescribir
-    if os.path.exists(PREVIOUS_STATE):
-        overwrite = input(
-            f"El archivo {PREVIOUS_STATE} ya existe. ¿Desea sobrescribirlo? (s/n): "
-        ).lower()
-        if overwrite == "s":
-            save_current(anomalies)
+    # Guardar estado actual
+    if os.path.exists(previous_state_file) and not args.overwrite:
+        print(f"El archivo {previous_state_file} ya existe. Use --overwrite para sobrescribir.")
     else:
-        save_current(anomalies)
-
-    # --------- Mostrar resumen por consola ---------
+        save_current(anomalies, previous_state_file)
 
     print("\n===== RESUMEN DE ANOMALÍAS RVTools =====\n")
     total_anomalies = sum(len(v) for v in anomalies.values())
@@ -404,7 +479,7 @@ def main():
     for k, v in anomalies.items():
         print(f"{k.upper():20} : {len(v)}")
 
-    if more_info == "s" or more_info == "y":
+    if more_info:
         print("\n===== ANOMALÍAS DETALLADAS =====\n")
         for k, v in anomalies.items():
             print(f"--- {k.upper()} ---")
@@ -415,7 +490,6 @@ def main():
                 print("No se detectaron anomalías")
             print()
 
-    # --------- Mostrar nuevas anomalías ---------
     print("\n===== NUEVAS ANOMALÍAS DETECTADAS =====\n")
     total = 0
     for k, v in new_anomalies.items():
@@ -423,9 +497,9 @@ def main():
         total += len(v)
 
     print(f"\nTOTAL DE NUEVAS ANOMALÍAS: {total}")
-    print(f"Reporte Excel: {OUTPUT_FILE}")
+    print(f"Reporte Excel: {output_file}")
 
-    if more_info == "s" or more_info == "y":
+    if more_info:
         print("\n===== NUEVAS ANOMALÍAS DETALLADAS =====\n")
         for k, v in new_anomalies.items():
             print(f"--- {k.upper()} ---")
