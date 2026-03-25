@@ -84,6 +84,59 @@ def save_current(state, state_file=PREVIOUS_STATE):
         json.dump(state, f, indent=2)
 
 
+def resolve_latest_rvtools_file(path):
+    """Resolver archivo de entrada si path es directorio."""
+    if not os.path.isdir(path):
+        return path
+
+    entries = [
+        os.path.join(path, f)
+        for f in os.listdir(path)
+        if f.lower().endswith(".xlsx") and os.path.isfile(os.path.join(path, f))
+    ]
+
+    if not entries:
+        raise FileNotFoundError(
+            f"No se encontraron archivos .xlsx en el directorio {path}"
+        )
+
+    import re
+    from datetime import datetime
+
+    pattern = re.compile(
+        r"^rvtools_(?P<prefix>.+?)_(?P<year>\d{4})-(?P<mon>\d{2})-(?P<day>\d{2})_(?P<hour>\d{2})\.(?P<min>\d{2})\.xlsx$",
+        re.IGNORECASE,
+    )
+
+    matched = []
+    for p in entries:
+        name = os.path.basename(p)
+        m = pattern.match(name)
+        if m:
+            try:
+                ts = datetime(
+                    int(m.group("year")),
+                    int(m.group("mon")),
+                    int(m.group("day")),
+                    int(m.group("hour")),
+                    int(m.group("min")),
+                )
+                matched.append((ts, p))
+            except ValueError:
+                continue
+
+    if matched:
+        matched.sort(key=lambda x: x[0], reverse=True)
+        chosen = matched[0][1]
+        print(f"Carpeta detectada, archivo elegido por nombre cronológico: {chosen}")
+        return chosen
+
+    entries.sort(key=lambda f: os.path.getmtime(f), reverse=True)
+    chosen = entries[0]
+    print(f"Carpeta detectada, archivo elegido por fecha de modificación: {chosen}")
+    return chosen
+
+
 # --------- Inicialización de estado y anomalías ---------
 
 prev_state = load_previous()
@@ -326,16 +379,27 @@ def format_issue_for_markdown(issue_type, items):
         all_columns = set()
         for item in items:
             all_columns.update(item.keys())
-        
+
         # Reorganizar columnas: primero las básicas, luego Message si existe, luego Annotation si existe
-        priority_order = ["Name", "VM", "Disk", "Free %", "Tools", "Zombie", "CDROM", "Message type", "Message", "Annotation"]
+        priority_order = [
+            "Name",
+            "VM",
+            "Disk",
+            "Free %",
+            "Tools",
+            "Zombie",
+            "CDROM",
+            "Message type",
+            "Message",
+            "Annotation",
+        ]
         columns = []
-        
+
         for col in priority_order:
             if col in all_columns:
                 columns.append(col)
                 all_columns.remove(col)
-        
+
         # Agregar cualquier columna restante al final
         columns.extend(sorted(all_columns))
 
@@ -365,13 +429,15 @@ def main():
     5. Guarda estado actual para futuras comparaciones
     6. Muestra resumen en consola
     """
-    parser = argparse.ArgumentParser(description="Analiza reportes RVTools y detecta anomalías")
+    parser = argparse.ArgumentParser(
+        description="Analiza reportes RVTools y detecta anomalías"
+    )
 
     parser.add_argument(
         "file",
         nargs="?",
         default="RVTools_export.xlsx",
-        help="Ruta al archivo RVTools (XLSX).",
+        help="Ruta al archivo RVTools (XLSX) o directorio que contiene archivos.",
     )
 
     parser.add_argument(
@@ -407,41 +473,28 @@ def main():
         help="Ruta del reporte Markdown generado.",
     )
 
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(0)
     parser.add_argument(
-        "--more-info",
-        "-i",
+        "--auto-folder",
         action="store_true",
-        help="Mostrar detalles completos de anomalías en consola.",
-    )
-    parser.add_argument(
-        "--overwrite",
-        "-y",
-        action="store_true",
-        help="Sobrescribir estado previo sin pedir confirmación.",
-    )
-    parser.add_argument(
-        "--output",
-        "-o",
-        default=OUTPUT_FILE,
-        help="Ruta de salida del reporte Excel.",
-    )
-    parser.add_argument(
-        "--state",
-        default=PREVIOUS_STATE,
-        help="Ruta del archivo de estado previo JSON.",
-    )
-    parser.add_argument(
-        "--markdown",
-        default=os.path.join(OUTPUT_DIR, "current_issues.md"),
-        help="Ruta del reporte Markdown generado.",
+        help="Si se pasa un directorio, usa el último archivo RVTools disponible.",
     )
 
     args = parser.parse_args()
 
-    CURRENT_FILE = args.file
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
+
+    if os.path.isdir(args.file):
+        if args.auto_folder:
+            CURRENT_FILE = resolve_latest_rvtools_file(args.file)
+        else:
+            parser.error(
+                "El argumento 'file' es un directorio. Use '--auto-folder' para seleccionar el último archivo dentro del directorio."
+            )
+    else:
+        CURRENT_FILE = args.file
+
     more_info = args.more_info
     output_file = args.output
     previous_state_file = args.state
@@ -468,7 +521,9 @@ def main():
 
     # Guardar estado actual
     if os.path.exists(previous_state_file) and not args.overwrite:
-        print(f"El archivo {previous_state_file} ya existe. Use --overwrite para sobrescribir.")
+        print(
+            f"El archivo {previous_state_file} ya existe. Use --overwrite para sobrescribir."
+        )
     else:
         save_current(anomalies, previous_state_file)
 
