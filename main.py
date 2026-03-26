@@ -144,12 +144,14 @@ anomalies = {}
 
 # --------- Detección de anomalías en vHealth ---------
 
+
 # Helper
 def get_col(*names, sheet=None):
     for n in names:
         if n in sheet.columns:
             return sheet[n].astype(str)
     return None
+
 
 def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
     """
@@ -160,11 +162,7 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
     if vhealth is None or vhealth.empty:
         return
 
-    vhealth.columns = (
-        vhealth.columns.str.strip()
-        .str.lower()
-        .str.replace(" ", "_")
-    )
+    vhealth.columns = vhealth.columns.str.strip().str.lower().str.replace(" ", "_")
 
     ignore_message_types = {
         "FOLDERNAME",
@@ -205,7 +203,9 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
             if has_message:
                 cols.insert(1, "message")
 
-            anomalies[key] = group[[c for c in cols if c in group.columns]].to_dict("records")
+            anomalies[key] = group[[c for c in cols if c in group.columns]].to_dict(
+                "records"
+            )
 
     if "cdrom" in vhealth.columns:
         cdrom = vhealth[
@@ -218,9 +218,9 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
 
     if "tools" in vhealth.columns:
         tools = vhealth[
-            vhealth["tools"].astype(str).str.contains(
-                "old|not installed", case=False, na=False
-            )
+            vhealth["tools"]
+            .astype(str)
+            .str.contains("old|not installed", case=False, na=False)
         ]
 
         anomalies["vmtools_issue"] = tools[
@@ -250,31 +250,38 @@ def check_vpartition(CURRENT_FILE, load_sheet, anomalies):
         anomalies (dict): Diccionario para guardar anomalías encontradas
     """
     vpartition = load_sheet(CURRENT_FILE, "vPartition")
+    if vpartition is None or vpartition.empty:
+        return
 
     vpartition.columns = (
-        vpartition.columns.str.strip()
-        .str.lower()
-        .str.replace(" ", "_")
+        vpartition.columns.str.strip().str.lower().str.replace(" ", "_")
     )
 
-    free_col = get_col("free_%", sheet=vpartition)
+    def has_col(name):
+        return name in vpartition.columns
 
-    if free_col is not None:
-        vpartition["free_%"] = pd.to_numeric(vpartition["free_%"], errors="coerce")
-        has_value = True
+    free_col = None
+
+    if has_col("free_%"):
+        free_col = "free_%"
+    elif has_col("free_percent"):
+        free_col = "free_percent"
+    elif has_col("free"):
+        free_col = "free"
     else:
-        vpartition["free_%"] = ""
-        has_value = False
+        return  # no usable data
 
-    if has_value:
-        # Filtrar particiones con menos del 10% de espacio libre
-        low = vpartition[vpartition["free_%"] < 10]
+    vpartition[free_col] = pd.to_numeric(vpartition[free_col], errors="coerce")
 
-        anomalies["low_disk_space"] = low[
-            ["VM", "Disk", "free_%", "Annotation"]
-        ].to_dict("records")
-    else:
-        anomalies["low_disk_space"] = []  # No se pudo evaluar espacio libre
+    low = vpartition[vpartition[free_col] < 10]
+
+    if low.empty:
+        return
+
+    possible_cols = ["vm", "disk", free_col, "annotation"]
+    available_cols = [c for c in possible_cols if c in low.columns]
+
+    anomalies["low_disk_space"] = low[available_cols].to_dict("records")
 
 
 # --------- Comparación con estado previo ---------
