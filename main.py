@@ -321,29 +321,27 @@ def compare_previous(prev_state, anomalies):
 # --------- Exportación en Excel ---------
 
 
-def export_xls(OUTPUT_FILE, new_anomalies):
+def export_xls(output_file, anomalies):
     """
     Exporta anomalías a un archivo Excel con una hoja por tipo de anomalía.
 
     Args:
-        OUTPUT_FILE (str): Ruta del archivo Excel de salida
-        new_anomalies (dict): Diccionario con anomalías nuevas a exportar
+        output_file (str): Ruta del archivo Excel de salida
+        anomalies (dict): Diccionario con anomalías a exportar
     """
-    writer = pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl")
+    writer = pd.ExcelWriter(output_file, engine="openpyxl")
 
-    if not new_anomalies:
-        # Asegurarse de que el workbook tenga al menos una hoja visible
-        pd.DataFrame({"info": ["No new issues"]}).to_excel(
+    if not anomalies:
+        pd.DataFrame({"info": ["No issues"]}).to_excel(
             writer, sheet_name="summary", index=False
         )
     else:
-        for k, v in new_anomalies.items():
+        for k, v in anomalies.items():
             if v:
                 df = pd.DataFrame(v)
             else:
-                df = pd.DataFrame({"info": ["No new issues"]})
+                df = pd.DataFrame({"info": ["No issues"]})
 
-            # Limitar nombre de hoja a 31 caracteres (límite de Excel)
             sheet = k[:31]
             df.to_excel(writer, sheet_name=sheet, index=False)
 
@@ -351,6 +349,82 @@ def export_xls(OUTPUT_FILE, new_anomalies):
 
 
 # --------- Exportación en Markdown ---------
+
+
+def export_html(output_file, anomalies):
+    """
+    Genera un reporte completo en formato HTML con todas las anomalías.
+
+    Args:
+        output_file (str): Ruta del archivo HTML a generar
+        anomalies (dict): Diccionario con todas las anomalías detectadas
+    """
+    total_issues = sum(len(v) for v in anomalies.values())
+
+    html = """
+    <!DOCTYPE html>
+    <html lang='es'>
+    <head>
+      <meta charset='UTF-8'>
+      <title>{title}</title>
+      <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; margin: 24px; }}
+        h1,h2,h3,h4 {{ color: #2a4365; }}
+        table {{ border-collapse: collapse; width: 100%; margin-bottom: 22px; }}
+        th,td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }}
+        th {{ background: #f2f7ff; }}
+        tr:nth-child(even) {{ background: #f8faff; }}
+      </style>
+    </head>
+    <body>
+      <h1>{title}</h1>
+      <p><strong>Fecha de Generación:</strong> {date}</p>
+      <p><strong>Generado por:</strong> {generated_by}</p>
+      <h2>Resumen de Anomalías</h2>
+      <p>Total: <strong>{total}</strong></p>
+      <table>
+        <thead><tr><th>Categoría</th><th>Cantidad</th></tr></thead>
+        <tbody>
+    """.format(
+        title=ISSUE_CONFIG["title"],
+        date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        generated_by=ISSUE_CONFIG["generated_by"],
+        total=total_issues,
+    )
+
+    for issue_type, items in anomalies.items():
+        html += f"<tr><td>{issue_type.upper()}</td><td>{len(items)}</td></tr>\n"
+
+    html += "</tbody></table>\n"
+
+    html += "<h2>Detalles</h2>\n"
+
+    for issue_type, items in anomalies.items():
+        html += f"<h3>{issue_type.upper()} ({len(items)})</h3>\n"
+        if not items:
+            html += "<p>Sin anomalías detectadas.</p>\n"
+            continue
+
+        columns = sorted({k for item in items for k in item.keys()})
+
+        html += "<table><thead><tr>"
+        for col in columns:
+            html += f"<th>{col}</th>"
+        html += "</tr></thead><tbody>\n"
+
+        for item in items:
+            html += "<tr>"
+            for col in columns:
+                value = str(item.get(col, "")).replace("\n", " ")
+                html += f"<td>{value}</td>"
+            html += "</tr>\n"
+
+        html += "</tbody></table>\n"
+
+    html += "</body></html>"
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html)
 
 
 def export_markdown(output_file, anomalies):
@@ -449,17 +523,26 @@ def format_issue_for_markdown(issue_type, items):
     return md
 
 
-def send_email_via_relay(relay_host, sender, receiver, body, files=None):
+def send_email_via_relay(relay_host, sender, receiver, body, files=None, html_body=None):
     # 1. Configuración del Relay
-    # Reemplaza con la IP o hostname de tu relay y el puerto (usualmente 25 o 587)
     relay_port = 25
 
     # 2. Crear el mensaje
     msg = EmailMessage()
-    msg["Subject"] = "Notificación de Sistema"
+    msg["Subject"] = "RVTools: Resumen de anomalías y archivo de reporte"
     msg["From"] = sender
     msg["To"] = receiver
+
+    # Establecer contenido en texto y HTML (si no se proporciona, se genera a partir del texto)
     msg.set_content(body)
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
+    else:
+        fallback_html = "<html><body>"
+        fallback_html += f"<p>{body.replace(chr(10), '<br/>')}</p>"
+        fallback_html += "</body></html>"
+        msg.add_alternative(fallback_html, subtype="html")
+
     if files is not None:
         for file in files:
             with open(file, "rb") as f:
@@ -535,6 +618,25 @@ def main():
     )
 
     parser.add_argument(
+        "--html",
+        default=os.path.join(OUTPUT_DIR, "current_issues.html"),
+        help="Ruta del reporte HTML generado.",
+    )
+
+    parser.add_argument(
+        "--report-format",
+        choices=["md", "html"],
+        default="html",
+        help="Formato del reporte de texto (md o html).",
+    )
+
+    parser.add_argument(
+        "--full-output",
+        default=os.path.join(OUTPUT_DIR, "rvtools_report_full.xlsx"),
+        help="Ruta del reporte XLSX completo con todas las anomalías.",
+    )
+
+    parser.add_argument(
         "--auto-folder",
         action="store_true",
         help="Si se pasa un directorio, usa el último archivo RVTools disponible.",
@@ -583,7 +685,6 @@ def main():
     more_info = args.more_info
     output_file = args.output
     previous_state_file = args.state
-    markdown_file = args.markdown
 
     check_vhealth(CURRENT_FILE, load_sheet, anomalies)
     check_vpartition(CURRENT_FILE, load_sheet, anomalies)
@@ -600,9 +701,17 @@ def main():
 
     new_anomalies = compare_previous(prev_state, anomalies)
     export_xls(output_file, new_anomalies)
+    export_xls(args.full_output, anomalies)
 
-    export_markdown(markdown_file, anomalies)
-    print(f"Reporte Markdown: {markdown_file}")
+    report_format = args.report_format.lower()
+    if report_format == "html":
+        export_html(args.html, anomalies)
+        report_file = args.html
+        print(f"Reporte HTML: {report_file}")
+    else:
+        export_markdown(args.markdown, anomalies)
+        report_file = args.markdown
+        print(f"Reporte Markdown: {report_file}")
 
     # Guardar estado actual
     if os.path.exists(previous_state_file) and not args.overwrite:
@@ -651,10 +760,81 @@ def main():
             print()
 
     if args.send_email:
-        files = [output_file, markdown_file]
+        files = [output_file, args.full_output, report_file]
         print("\nEnviando notificación por email a través del relay...")
-        body = f"Se han detectado {total} nuevas anomalías en el último análisis de RVTools. Por favor revise el reporte generado para más detalles."
-        send_email_via_relay(args.email_relay, args.email_sender, args.email_receiver, body, files=files)
+
+        # Resumen de estadísticas para el cuerpo del correo
+        total_current = sum(len(v) for v in anomalies.values())
+        new_total = sum(len(v) for v in new_anomalies.values())
+
+        header_plain = "RVTools - Resumen de Anomalías\n"
+        header_plain += "========================================\n"
+        header_plain += f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header_plain += f"Total anomalías detectadas: {total_current}\n"
+        header_plain += f"Nuevas anomalías respecto al estado previo: {new_total}\n\n"
+
+        body_plain = header_plain
+        body_plain += "Resumen por categoría:\n"
+        for key, items in anomalies.items():
+            body_plain += f"- {key.upper():20}: {len(items)}\n"
+
+        body_plain += "\nDetalles completos en los archivos adjuntos:\n"
+        body_plain += f"- Ruta (nuevas anomalías): {output_file}\n"
+        body_plain += f"- Ruta (todas las anomalías): {args.full_output}\n"
+        body_plain += f"- Ruta (reporte legible): {report_file}\n"
+
+        body_plain += "\nPor favor revise primero el archivo de resumen en HTML y luego el XLSX completo para auditoría y seguimiento."
+
+        # Cuerpo HTML con tabla de resumen
+        rows_summary = ""
+        for key, items in anomalies.items():
+            rows_summary += f"<tr><td>{key.upper()}</td><td>{len(items)}</td></tr>"
+
+        html_body = f"""
+        <!DOCTYPE html>
+        <html lang='es'>
+        <head>
+          <meta charset='UTF-8'>
+          <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.5; margin: 16px; }}
+            h1 {{ color: #1f4e79; }}
+            table {{ border-collapse: collapse; width: 100%; max-width: 800px; }}
+            th, td {{ border: 1px solid #a8c4e5; padding: 8px; }}
+            th {{ background-color: #dde9f7; text-align: left; }}
+            tr:nth-child(even) {{ background-color: #f6f9ff; }}
+          </style>
+        </head>
+        <body>
+          <h1>RVTools - Resumen de Anomalías</h1>
+          <p><strong>Fecha:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+          <p><strong>Total anomalías detectadas:</strong> {total_current}</p>
+          <p><strong>Nuevas anomalías:</strong> {new_total}</p>
+          <h2>Resumen por categoría</h2>
+          <table>
+            <thead><tr><th>Categoría</th><th>Cantidad</th></tr></thead>
+            <tbody>
+              {rows_summary}
+            </tbody>
+          </table>
+          <p>Detalles completos adjuntos en archivo XLSX y reporte legible.</p>
+          <ul>
+            <li>Excel nuevas: {output_file}</li>
+            <li>Excel completo: {args.full_output}</li>
+            <li>Reporte legible: {report_file}</li>
+          </ul>
+          <p>Por favor revisar primero el resumen y luego el detalle completo para auditoría.</p>
+        </body>
+        </html>
+        """
+
+        send_email_via_relay(
+            args.email_relay,
+            args.email_sender,
+            args.email_receiver,
+            body_plain,
+            files=files,
+            html_body=html_body,
+        )
 
 
 if __name__ == "__main__":
