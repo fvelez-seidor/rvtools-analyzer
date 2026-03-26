@@ -651,9 +651,10 @@ def main():
             print()
 
     if args.send_email:
+        files = [output_file, markdown_file]
         print("\nEnviando notificación por email a través del relay...")
         body = f"Se han detectado {total} nuevas anomalías en el último análisis de RVTools. Por favor revise el reporte generado para más detalles."
-        send_email_via_relay(args.email_relay, args.email_sender, args.email_receiver, body, files=output_file)
+        send_email_via_relay(args.email_relay, args.email_sender, args.email_receiver, body, files=files)
 
 
 if __name__ == "__main__":
