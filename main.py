@@ -449,7 +449,7 @@ def format_issue_for_markdown(issue_type, items):
     return md
 
 
-def send_email_via_relay(relay_host, sender, receiver, body, file_path=None):
+def send_email_via_relay(relay_host, sender, receiver, body, files=None):
     # 1. Configuración del Relay
     # Reemplaza con la IP o hostname de tu relay y el puerto (usualmente 25 o 587)
     relay_port = 25
@@ -460,11 +460,12 @@ def send_email_via_relay(relay_host, sender, receiver, body, file_path=None):
     msg["From"] = sender
     msg["To"] = receiver
     msg.set_content(body)
-    if file_path is not None:
-        with open(file_path, "rb") as f:
-            file_data = f.read()
-            file_name = f.name
-            msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
+    if files is not None:
+        for file in files:
+            with open(file, "rb") as f:
+                file_data = f.read()
+                file_name = f.name
+                msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
 
     # 3. Enviar sin login
     try:
@@ -652,7 +653,7 @@ def main():
     if args.send_email:
         print("\nEnviando notificación por email a través del relay...")
         body = f"Se han detectado {total} nuevas anomalías en el último análisis de RVTools. Por favor revise el reporte generado para más detalles."
-        send_email_via_relay(args.email_relay, args.email_sender, args.email_receiver, body, file_path=output_file)
+        send_email_via_relay(args.email_relay, args.email_sender, args.email_receiver, body, files=output_file)
 
 
 if __name__ == "__main__":
