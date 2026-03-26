@@ -148,86 +148,81 @@ anomalies = {}
 def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
     """
     Analiza la hoja vHealth del reporte RVTools para detectar anomalías.
-
-    Detecta:
-    - Tipos de mensajes de problemas (excepto ciertos tipos ignorados)
-    - CDROMs conectados
-    - VMware Tools desactualizados o no instalados
-    - VMs zombies
-
-    Args:
-        CURRENT_FILE (str): Ruta del archivo RVTools
-        load_sheet (function): Función para cargar hojas Excel
-        anomalies (dict): Diccionario para guardar anomalías encontradas
     """
-    vhealth = load_sheet(CURRENT_FILE, "vHealth")
 
-    ignore_message_types = [
+    vhealth = load_sheet(CURRENT_FILE, "vHealth")
+    if vhealth is None or vhealth.empty:
+        return
+
+    vhealth.columns = (
+        vhealth.columns.str.strip()
+        .str.lower()
+        .str.replace(" ", "_")
+    )
+
+    ignore_message_types = {
         "FOLDERNAME",
         "PERFORMANCE TIP",
         "SECURITY",
         "STORAGE",
         "USB",
         "CPU",
-    ]
+    }
 
-    if vhealth is not None:
-        message = False
-        try:
-            vhealth["Message"] = vhealth["Message"].astype(str) or vhealth["message"].astype(str)
-            message = True
-        except Exception:
-            print("No existe la columna 'Message', se omite este análisis.")
+    # Helper
+    def get_col(*names):
+        for n in names:
+            if n in vhealth.columns:
+                return vhealth[n].astype(str)
+        return None
 
-        try:
-            vhealth["Message type"] = vhealth["Message type"].astype(str) or vhealth["message type"].astype(str) or vhealth["message_type"].astype(str)
-        except Exception:
-            print("No existe la columna 'Message type', se omite este análisis.")
+    vhealth["message"] = get_col("message") or ""
+    vhealth["message_type"] = get_col("message_type", "message type") or ""
 
-        # Detectar todos los tipos de problemas automáticamente
-        problem_rows = vhealth[vhealth["Message type"].notna()]
+    has_message = "message" in vhealth.columns
+    has_type = "message_type" in vhealth.columns
 
-        for msg_type, group in problem_rows.groupby("Message type"):
-            if msg_type.strip().upper() in ignore_message_types:
+    if has_type:
+        problem_rows = vhealth[vhealth["message_type"].notna()]
+
+        for msg_type, group in problem_rows.groupby("message_type"):
+            if str(msg_type).strip().upper() in ignore_message_types:
                 continue
-            key = msg_type.lower().replace(" ", "_")
 
-            anomalies[key] = (
-                group[["Name", "Message", "Message type"]].to_dict("records")
-                if message
-                else group[["Name", "Message type"]].to_dict("records")
-            )
+            key = str(msg_type).lower().replace(" ", "_")
 
-        # Detectar CDROMs conectados
-        if "CDROM" in vhealth.columns:
-            cdrom = vhealth[
-                vhealth["CDROM"].str.contains("connected", case=False, na=False)
-            ]
-            anomalies["cdrom_connected"] = (
-                cdrom[["Name", "Message", "CDROM"]].to_dict("records")
-                if message
-                else cdrom[["Name", "CDROM"]].to_dict("records")
-            )
+            cols = ["name", "message_type"]
+            if has_message:
+                cols.insert(1, "message")
 
-        # Detectar VMware Tools desactualizados o no instalados
-        if "Tools" in vhealth.columns:
-            tools = vhealth[
-                vhealth["Tools"].str.contains("old|not installed", case=False, na=False)
-            ]
-            anomalies["vmtools_issue"] = (
-                tools[["Name", "Message", "Tools"]].to_dict("records")
-                if message
-                else tools[["Name", "Tools"]].to_dict("records")
-            )
+            anomalies[key] = group[cols].to_dict("records")
 
-        # Detectar VMs zombies
-        if "Zombie" in vhealth.columns:
-            zombies = vhealth[vhealth["Zombie"].astype(str) != "0"]
-            anomalies["zombies"] = (
-                zombies[["Name", "Message", "Zombie"]].to_dict("records")
-                if message
-                else zombies[["Name", "Zombie"]].to_dict("records")
+    if "cdrom" in vhealth.columns:
+        cdrom = vhealth[
+            vhealth["cdrom"].astype(str).str.contains("connected", case=False, na=False)
+        ]
+
+        anomalies["cdrom_connected"] = cdrom[
+            [c for c in ["name", "message", "cdrom"] if c in cdrom.columns]
+        ].to_dict("records")
+
+    if "tools" in vhealth.columns:
+        tools = vhealth[
+            vhealth["tools"].astype(str).str.contains(
+                "old|not installed", case=False, na=False
             )
+        ]
+
+        anomalies["vmtools_issue"] = tools[
+            [c for c in ["name", "message", "tools"] if c in tools.columns]
+        ].to_dict("records")
+
+    if "zombie" in vhealth.columns:
+        zombies = vhealth[vhealth["zombie"].astype(str) != "0"]
+
+        anomalies["zombies"] = zombies[
+            [c for c in ["name", "message", "zombie"] if c in zombies.columns]
+        ].to_dict("records")
 
 
 # --------- Detección de anomalías en vPartition ---------
