@@ -174,12 +174,15 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
     if vhealth is not None:
         message = False
         try:
-            vhealth["Message"] = vhealth["Message"].astype(str)
+            vhealth["Message"] = vhealth["Message"].astype(str) or vhealth["message"].astype(str)
             message = True
         except Exception:
             print("No existe la columna 'Message', se omite este análisis.")
 
-        vhealth["Message type"] = vhealth["Message type"].astype(str)
+        try:
+            vhealth["Message type"] = vhealth["Message type"].astype(str) or vhealth["message type"].astype(str) or vhealth["message_type"].astype(str)
+        except Exception:
+            print("No existe la columna 'Message type', se omite este análisis.")
 
         # Detectar todos los tipos de problemas automáticamente
         problem_rows = vhealth[vhealth["Message type"].notna()]
