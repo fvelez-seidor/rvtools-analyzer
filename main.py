@@ -20,6 +20,8 @@ import json
 import os
 import sys
 from datetime import datetime
+import smtplib
+from email.message import EmailMessage
 
 # Directorio de salida para reportes
 OUTPUT_DIR = "rvtools_reports"
@@ -447,6 +449,29 @@ def format_issue_for_markdown(issue_type, items):
     return md
 
 
+def send_email_via_relay(relay_host, sender, receiver, body):
+    # 1. Configuración del Relay
+    # Reemplaza con la IP o hostname de tu relay y el puerto (usualmente 25 o 587)
+    relay_port = 25
+
+    # 2. Crear el mensaje
+    msg = EmailMessage()
+    msg["Subject"] = "Notificación de Sistema"
+    msg["From"] = sender
+    msg["To"] = receiver
+    msg.set_content(body)
+
+    # 3. Enviar sin login
+    try:
+        # Conexión directa al host y puerto especificados
+        with smtplib.SMTP(relay_host, relay_port) as server:
+            # Nota: No llamamos a server.login() porque el relay confía en tu IP
+            server.send_message(msg)
+        print("Correo enviado correctamente a través del relay.")
+    except Exception as e:
+        print(f"Error al conectar con el relay: {e}")
+
+
 def main():
     """
     Función principal que ejecuta el flujo completo del análisis.
@@ -507,6 +532,30 @@ def main():
         "--auto-folder",
         action="store_true",
         help="Si se pasa un directorio, usa el último archivo RVTools disponible.",
+    )
+
+    parser.add_argument(
+        "--send-email",
+        action="store_true",
+        help="Enviar notificación por email a través de relay interno.",
+    )
+
+    parser.add_argument(
+        "--email-relay",
+        default="192.168.1.100",
+        help="IP o hostname del relay SMTP para enviar email (usado con --send-email).",
+    )
+
+    parser.add_argument(
+        "--email-sender",
+        default="servidor@tudominio.com",
+        help="Dirección de correo del remitente (usado con --send-email).",
+    )
+
+    parser.add_argument(
+        "--email-receiver",
+        default="destino@ejemplo.com",
+        help="Dirección de correo del destinatario (usado con --send-email).",
     )
 
     args = parser.parse_args()
@@ -594,6 +643,11 @@ def main():
             else:
                 print("No hay nuevas anomalías")
             print()
+
+    if args.send_email:
+        print("\nEnviando notificación por email a través del relay...")
+        body = f"Se han detectado {total} nuevas anomalías en el último análisis de RVTools. Por favor revise el reporte generado para más detalles."
+        send_email_via_relay(args.email_relay, args.email_sender, args.email_receiver, body)
 
 
 if __name__ == "__main__":
