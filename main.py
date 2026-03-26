@@ -555,7 +555,7 @@ def main():
     parser.add_argument(
         "--email-receiver",
         default="destino@ejemplo.com",
-        help="Dirección de correo del destinatario (usado con --send-email).",
+        help="Dirección de correo del destinatario (usado con --send-email). Se pueden definir varios destinatarios separados por comas.",
     )
 
     args = parser.parse_args()
