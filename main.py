@@ -144,6 +144,12 @@ anomalies = {}
 
 # --------- Detección de anomalías en vHealth ---------
 
+# Helper
+def get_col(*names, sheet=None):
+    for n in names:
+        if n in sheet.columns:
+            return sheet[n].astype(str)
+    return None
 
 def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
     """
@@ -169,15 +175,8 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
         "CPU",
     }
 
-    # Helper
-    def get_col(*names):
-        for n in names:
-            if n in vhealth.columns:
-                return vhealth[n].astype(str)
-        return None
-
-    message_col = get_col("message")
-    type_col = get_col("message_type")
+    message_col = get_col("message", sheet=vhealth)
+    type_col = get_col("message_type", sheet=vhealth)
 
     if message_col is not None:
         vhealth["message"] = message_col
@@ -252,15 +251,30 @@ def check_vpartition(CURRENT_FILE, load_sheet, anomalies):
     """
     vpartition = load_sheet(CURRENT_FILE, "vPartition")
 
-    if vpartition is not None:
-        vpartition["Free %"] = pd.to_numeric(vpartition["Free %"], errors="coerce")
+    vpartition.columns = (
+        vpartition.columns.str.strip()
+        .str.lower()
+        .str.replace(" ", "_")
+    )
 
+    free_col = get_col("free_%", sheet=vpartition)
+
+    if free_col is not None:
+        vpartition["free_%"] = pd.to_numeric(vpartition["free_%"], errors="coerce")
+        has_value = True
+    else:
+        vpartition["free_%"] = ""
+        has_value = False
+
+    if has_value:
         # Filtrar particiones con menos del 10% de espacio libre
-        low = vpartition[vpartition["Free %"] < 10]
+        low = vpartition[vpartition["free_%"] < 10]
 
         anomalies["low_disk_space"] = low[
-            ["VM", "Disk", "Free %", "Annotation"]
+            ["VM", "Disk", "free_%", "Annotation"]
         ].to_dict("records")
+    else:
+        anomalies["low_disk_space"] = []  # No se pudo evaluar espacio libre
 
 
 # --------- Comparación con estado previo ---------
