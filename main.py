@@ -176,11 +176,22 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
                 return vhealth[n].astype(str)
         return None
 
-    vhealth["message"] = get_col("message") or ""
-    vhealth["message_type"] = get_col("message_type", "message type") or ""
+    message_col = get_col("message")
+    type_col = get_col("message_type")
 
-    has_message = "message" in vhealth.columns
-    has_type = "message_type" in vhealth.columns
+    if message_col is not None:
+        vhealth["message"] = message_col
+        has_message = True
+    else:
+        vhealth["message"] = ""
+        has_message = False
+
+    if type_col is not None:
+        vhealth["message_type"] = type_col
+        has_type = True
+    else:
+        vhealth["message_type"] = ""
+        has_type = False
 
     if has_type:
         problem_rows = vhealth[vhealth["message_type"].notna()]
@@ -195,7 +206,7 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
             if has_message:
                 cols.insert(1, "message")
 
-            anomalies[key] = group[cols].to_dict("records")
+            anomalies[key] = group[[c for c in cols if c in group.columns]].to_dict("records")
 
     if "cdrom" in vhealth.columns:
         cdrom = vhealth[
