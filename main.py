@@ -283,7 +283,7 @@ def check_vpartition(CURRENT_FILE, load_sheet, anomalies):
     possible_cols = ["vm", "disk", free_col, "annotation"]
     available_cols = [c for c in possible_cols if c in low.columns]
 
-    anomalies["low_disk_space"] = low[available_cols].to_dict("records")
+    anomalies["low_disk_space_partition"] = low[available_cols].to_dict("records")
 
 
 def check_vdatastore(CURRENT_FILE, load_sheet, anomalies):
@@ -329,7 +329,7 @@ def check_vdatastore(CURRENT_FILE, load_sheet, anomalies):
     possible_cols = ["vm", "disk", free_col, "annotation"]
     available_cols = [c for c in possible_cols if c in low.columns]
 
-    anomalies["low_disk_space"] = low[available_cols].to_dict("records")
+    anomalies["low_disk_space_datastore"] = low[available_cols].to_dict("records")
 
 
 # --------- Comparación con estado previo ---------
