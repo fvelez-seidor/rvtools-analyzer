@@ -157,7 +157,7 @@ def get_col(*names, sheet=None):
 
 def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
     """
-    Analiza la hoja vHealth del reporte RVTools para detectar anomalías.
+    Analiza la hoja vHealth del reporte RVTools para detecta anomalías.
     """
 
     vhealth = load_sheet(CURRENT_FILE, "vHealth")
@@ -171,7 +171,6 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
         "PERFORMANCE TIP",
         "SECURITY",
         "STORAGE",
-        "USB",
         "CPU",
     }
 
@@ -209,6 +208,15 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
                 "records"
             )
 
+    if "snapshot" in vhealth.columns:
+        snapshots = vhealth[
+            vhealth["snapshot"].astype(str).str.contains("present", case=False, na=False)
+        ]
+
+        anomalies["snapshot_present"] = snapshots[
+            [c for c in ["name", "message", "snapshot", "age"] if c in snapshots.columns]
+        ].to_dict("records")
+
     if "cdrom" in vhealth.columns:
         cdrom = vhealth[
             vhealth["cdrom"].astype(str).str.contains("connected", case=False, na=False)
@@ -216,6 +224,15 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
 
         anomalies["cdrom_connected"] = cdrom[
             [c for c in ["name", "message", "cdrom"] if c in cdrom.columns]
+        ].to_dict("records")
+    
+    if "usb" in vhealth.columns:
+        usb = vhealth[
+            vhealth["usb"].astype(str).str.contains("connected", case=False, na=False)
+        ]
+
+        anomalies["usb_connected"] = usb[
+            [c for c in ["name", "message", "usb"] if c in usb.columns]
         ].to_dict("records")
 
     if "tools" in vhealth.columns:
@@ -332,6 +349,34 @@ def check_vdatastore(CURRENT_FILE, load_sheet, anomalies):
     anomalies["low_disk_space_datastore"] = low[available_cols].to_dict("records")
 
 
+def check_report_age(file_path, anomalies, max_days=60):
+    """
+    Verifica la antigüedad del reporte y advierte si es mayor a max_days.
+
+    Args:
+        file_path (str): Ruta del archivo de reporte
+        anomalies (dict): Diccionario de anomalías
+        max_days (int): Número máximo de días permitidos (por defecto 60)
+    """
+    # Obtener la fecha de modificación del archivo actual
+    if not os.path.exists(file_path):
+        return
+
+    file_mtime = os.path.getmtime(file_path)
+    file_date = datetime.fromtimestamp(file_mtime)
+    age_days = (datetime.now() - file_date).days
+
+    if age_days > max_days:
+        anomalies["old_report_warning"] = [
+            {
+                "file": os.path.basename(file_path),
+                "age_days": age_days,
+                "last_modified": file_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "warning": f"Report is {age_days} days old (threshold: {max_days} days)",
+            }
+        ]
+
+
 # --------- Comparación con estado previo ---------
 
 
@@ -420,32 +465,51 @@ def export_html(output_file, anomalies):
         th,td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }}
         th {{ background: #f2f7ff; }}
         tr:nth-child(even) {{ background: #f8faff; }}
+        .warning-row {{ background-color: #fff3cd !important; }}
+        .warning-cell {{ color: #8b0000; font-weight: bold; }}
+        .warning-box {{ background-color: #fff3cd; border-left: 4px solid #ff9800; padding: 12px; margin-bottom: 16px; border-radius: 4px; }}
       </style>
     </head>
     <body>
       <h1>{title}</h1>
       <p><strong>Fecha de Generación:</strong> {date}</p>
       <p><strong>Generado por:</strong> {generated_by}</p>
-      <h2>Resumen de Anomalías</h2>
-      <p>Total: <strong>{total}</strong></p>
-      <table>
-        <thead><tr><th>Categoría</th><th>Cantidad</th></tr></thead>
-        <tbody>
     """.format(
         title=ISSUE_CONFIG["title"],
         date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         generated_by=ISSUE_CONFIG["generated_by"],
-        total=total_issues,
     )
 
+    # Show warning box if old report
+    if "old_report_warning" in anomalies and anomalies["old_report_warning"]:
+        warning_item = anomalies["old_report_warning"][0]
+        html += f"""
+      <div class="warning-box">
+        <strong>⚠️ WARNING: {warning_item.get('warning', 'Old report detected')}</strong><br>
+        Last modified: {warning_item.get('last_modified', 'N/A')}
+      </div>
+    """
+
+    html += f"""
+      <h2>Resumen de Anomalías</h2>
+      <p>Total: <strong>{total_issues}</strong></p>
+      <table>
+        <thead><tr><th>Categoría</th><th>Cantidad</th></tr></thead>
+        <tbody>
+    """
+
     for issue_type, items in anomalies.items():
-        html += f"<tr><td>{issue_type.upper()}</td><td>{len(items)}</td></tr>\n"
+        if issue_type == "old_report_warning":
+            html += f"<tr class='warning-row'><td class='warning-cell'>{issue_type.upper()}</td><td class='warning-cell'>{len(items)}</td></tr>\n"
+        else:
+            html += f"<tr><td>{issue_type.upper()}</td><td>{len(items)}</td></tr>\n"
 
     html += "</tbody></table>\n"
 
     html += "<h2>Detalles</h2>\n"
 
     for issue_type, items in anomalies.items():
+        is_warning = issue_type == "old_report_warning"
         html += f"<h3>{issue_type.upper()} ({len(items)})</h3>\n"
         if not items:
             html += "<p>Sin anomalías detectadas.</p>\n"
@@ -459,10 +523,12 @@ def export_html(output_file, anomalies):
         html += "</tr></thead><tbody>\n"
 
         for item in items:
-            html += "<tr>"
+            row_class = " class='warning-row'" if is_warning else ""
+            html += f"<tr{row_class}>"
             for col in columns:
                 value = str(item.get(col, "")).replace("\n", " ")
-                html += f"<td>{value}</td>"
+                cell_class = " class='warning-cell'" if is_warning else ""
+                html += f"<td{cell_class}>{value}</td>"
             html += "</tr>\n"
 
         html += "</tbody></table>\n"
@@ -488,6 +554,13 @@ def export_markdown(output_file, anomalies):
     md += f"**Generado por:** {ISSUE_CONFIG['generated_by']}\n\n"
 
     total_issues = sum(len(v) for v in anomalies.values())
+
+    # Show warning box if old report
+    if "old_report_warning" in anomalies and anomalies["old_report_warning"]:
+        warning_item = anomalies["old_report_warning"][0]
+        md += f"⚠️ **WARNING: {warning_item.get('warning', 'Old report detected')}**\n"
+        md += f"Last modified: {warning_item.get('last_modified', 'N/A')}\n\n"
+        md += "---\n\n"
 
     md += "## Resumen de Anomalías\n\n"
     md += "| Categoría | Cantidad |\n"
@@ -743,6 +816,9 @@ def main():
     check_vpartition(CURRENT_FILE, load_sheet, anomalies)
     check_vdatastore(CURRENT_FILE, load_sheet, anomalies)
 
+    # Check report age
+    check_report_age(CURRENT_FILE, anomalies)
+
     # Leer estado previo según argumento si existe
     global prev_state
     if previous_state_file != PREVIOUS_STATE:
@@ -821,16 +897,31 @@ def main():
         total_current = sum(len(v) for v in anomalies.values())
         new_total = sum(len(v) for v in new_anomalies.values())
 
+        # Check for age warning
+        age_warning = ""
+        age_warning_html = ""
+        if "old_report_warning" in anomalies and anomalies["old_report_warning"]:
+            warning_item = anomalies["old_report_warning"][0]
+            age_warning = f"\n⚠️  WARNING: {warning_item.get('warning', 'Old report detected')}\nLast modified: {warning_item.get('last_modified', 'N/A')}\n"
+            age_warning_html = f"""
+          <div style="background-color: #fff3cd; border-left: 4px solid #ff9800; padding: 12px; margin-bottom: 16px; border-radius: 4px;">
+            <strong style="color: #8b0000;">⚠️ WARNING: {warning_item.get('warning', 'Old report detected')}</strong><br>
+            <span style="color: #8b0000;">Last modified: {warning_item.get('last_modified', 'N/A')}</span>
+          </div>
+        """
+
         header_plain = "RVTools - Resumen de Anomalías\n"
         header_plain += "========================================\n"
-        header_plain += f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        header_plain += f"Total anomalías detectadas: {total_current}\n"
+        header_plain += f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        header_plain += age_warning
+        header_plain += f"\nTotal anomalías detectadas: {total_current}\n"
         header_plain += f"Nuevas anomalías respecto al estado previo: {new_total}\n\n"
 
         body_plain = header_plain
         body_plain += "Resumen por categoría:\n"
         for key, items in anomalies.items():
-            body_plain += f"- {key.upper():20}: {len(items)}\n"
+            if key != "old_report_warning":
+                body_plain += f"- {key.upper():20}: {len(items)}\n"
 
         body_plain += "\nDetalles completos en los archivos adjuntos:\n"
         body_plain += f"- Ruta (nuevas anomalías): {output_file}\n"
@@ -842,6 +933,8 @@ def main():
         # Cuerpo HTML con tabla de resumen
         rows_summary = ""
         for key, items in anomalies.items():
+            if key == "old_report_warning":
+                continue
             rows_summary += f"<tr><td>{key.upper()}</td><td>{len(items)}</td></tr>"
 
         html_body = f"""
@@ -860,6 +953,7 @@ def main():
         </head>
         <body>
           <h1>RVTools - Resumen de Anomalías</h1>
+          {age_warning_html}
           <p><strong>Fecha:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
           <p><strong>Total anomalías detectadas:</strong> {total_current}</p>
           <p><strong>Nuevas anomalías:</strong> {new_total}</p>
