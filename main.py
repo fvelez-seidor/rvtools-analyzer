@@ -326,7 +326,7 @@ def check_vdatastore(CURRENT_FILE, load_sheet, anomalies):
     if low.empty:
         return
 
-    possible_cols = ["vm", "disk", free_col, "annotation"]
+    possible_cols = ["name", "hosts", free_col, "address"]
     available_cols = [c for c in possible_cols if c in low.columns]
 
     anomalies["low_disk_space_datastore"] = low[available_cols].to_dict("records")
