@@ -286,6 +286,52 @@ def check_vpartition(CURRENT_FILE, load_sheet, anomalies):
     anomalies["low_disk_space"] = low[available_cols].to_dict("records")
 
 
+def check_vdatastore(CURRENT_FILE, load_sheet, anomalies):
+    """
+    Analiza la hoja vDatastore del reporte RVTools para detectar bajo espacio en disco.
+
+    Detecta particiones con menos del 10% de espacio libre.
+
+    Args:
+        CURRENT_FILE (str): Ruta del archivo RVTools
+        load_sheet (function): Función para cargar hojas Excel
+        anomalies (dict): Diccionario para guardar anomalías encontradas
+    """
+    vdatastore = load_sheet(CURRENT_FILE, "vDatastore")
+    if vdatastore is None or vdatastore.empty:
+        return
+
+    vdatastore.columns = (
+        vdatastore.columns.str.strip().str.lower().str.replace(" ", "_")
+    )
+
+    def has_col(name):
+        return name in vdatastore.columns
+
+    free_col = None
+
+    if has_col("free_%"):
+        free_col = "free_%"
+    elif has_col("free_percent"):
+        free_col = "free_percent"
+    elif has_col("free"):
+        free_col = "free"
+    else:
+        return  # no usable data
+
+    vdatastore[free_col] = pd.to_numeric(vdatastore[free_col], errors="coerce")
+
+    low = vdatastore[vdatastore[free_col] < 10]
+
+    if low.empty:
+        return
+
+    possible_cols = ["vm", "disk", free_col, "annotation"]
+    available_cols = [c for c in possible_cols if c in low.columns]
+
+    anomalies["low_disk_space"] = low[available_cols].to_dict("records")
+
+
 # --------- Comparación con estado previo ---------
 
 
@@ -523,7 +569,9 @@ def format_issue_for_markdown(issue_type, items):
     return md
 
 
-def send_email_via_relay(relay_host, sender, receiver, body, files=None, html_body=None):
+def send_email_via_relay(
+    relay_host, sender, receiver, body, files=None, html_body=None
+):
     # 1. Configuración del Relay
     relay_port = 25
 
@@ -548,7 +596,12 @@ def send_email_via_relay(relay_host, sender, receiver, body, files=None, html_bo
             with open(file, "rb") as f:
                 file_data = f.read()
                 file_name = f.name
-                msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
+                msg.add_attachment(
+                    file_data,
+                    maintype="application",
+                    subtype="octet-stream",
+                    filename=file_name,
+                )
 
     # 3. Enviar sin login
     try:
@@ -688,6 +741,7 @@ def main():
 
     check_vhealth(CURRENT_FILE, load_sheet, anomalies)
     check_vpartition(CURRENT_FILE, load_sheet, anomalies)
+    check_vdatastore(CURRENT_FILE, load_sheet, anomalies)
 
     # Leer estado previo según argumento si existe
     global prev_state
@@ -806,7 +860,7 @@ def main():
         </head>
         <body>
           <h1>RVTools - Resumen de Anomalías</h1>
-          <p><strong>Fecha:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+          <p><strong>Fecha:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
           <p><strong>Total anomalías detectadas:</strong> {total_current}</p>
           <p><strong>Nuevas anomalías:</strong> {new_total}</p>
           <h2>Resumen por categoría</h2>
