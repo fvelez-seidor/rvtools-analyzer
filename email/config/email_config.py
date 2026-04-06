@@ -21,6 +21,10 @@ ATTACHMENTS_TO_INCLUDE = {
     "rvtools_report": {
         # Find latest rvtools_report_*.xlsx file in rvtools_reports/
         "source": "rvtools_reports/rvtools_report_{latest}.xlsx",
-        "optional": True,
+        "optional": False,
+    },
+    "previous_state": {
+        "source": "rvtools_reports/rvtools_previous_state.json",
+        "optional": False,
     },
 }
