@@ -57,10 +57,10 @@ class EmailHandler:
 
         Args:
             project_name: Name of the project (used for output directory)
-            output_base: Base directory for email output (default: ~/.email-templates)
+            output_base: Base directory for email output (default: /var/lib/semaphore/exports/.email-templates)
         """
         if output_base is None:
-            output_base = str(Path.home() / ".email-templates")
+            output_base = "/var/lib/semaphore/exports/.email-templates"
 
         self.project_name = project_name
         self.output_dir = Path(output_base) / project_name
