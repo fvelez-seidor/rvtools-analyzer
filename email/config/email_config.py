@@ -15,7 +15,7 @@
 
 ATTACHMENTS_TO_INCLUDE = {
     "current_issues": {
-        "source": "rvtools_reports/current_issues.md",
+        "source": "rvtools_reports/current_issues.html",
         "optional": False,
     },
     "rvtools_report": {
