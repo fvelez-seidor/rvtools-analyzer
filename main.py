@@ -151,6 +151,8 @@ def get_col(*names, sheet=None):
 
 def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
     """Analyze vHealth sheet from RVTools report for anomalies."""
+    
+    vhealth = load_sheet(CURRENT_FILE, "vHealth")
     if vhealth is None or vhealth.empty:
         return
 
