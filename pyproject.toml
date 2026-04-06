@@ -1,9 +1,11 @@
 [project]
-name = "scripts"
+name = "rvtools-analyzer"
 version = "0.1.0"
-description = "Add your description here"
+description = "Automated RVTools infrastructure analysis and anomaly detection"
 readme = "README.md"
 requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [{name = "Francisco Martín Vélez Manrique"}]
 dependencies = [
     "numpy>=2.4.3",
     "openpyxl>=3.1.5",

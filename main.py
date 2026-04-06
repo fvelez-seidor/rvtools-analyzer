@@ -1,17 +1,15 @@
 """
-Script de análisis automatizado de reportes RVTools.
+RVTools Infrastructure Analysis Tool.
 
-Este módulo procesa reportes de RVTools (vHealth y vPartition) para detectar
-anomalías en la infraestructura de virtualización. Compara el estado actual
-con el estado anterior para identificar nuevos problemas y genera reportes
-en Excel y Markdown.
+Analyzes RVTools reports (vHealth and vPartition) to detect anomalies
+in virtualization infrastructure. Compares current state with previous state
+to identify new issues and generates reports in Excel and Markdown.
 
-Características principales:
-- Carga datos de hojas vHealth y vPartition desde archivos Excel
-- Detecta automáticamente anomalías (bajo espacio en disco, Tools desactualizados, etc.)
-- Compara estado actual con estado previo para identificar nuevos problemas
-- Exporta resultados en Excel y Markdown
-- Mantiene historial de estado para comparaciones futuras
+Main features:
+- Automatically detects low disk space, outdated VMware Tools, etc.
+- Compares current state with previous state to identify new issues
+- Exports results in Excel and Markdown formats
+- Maintains state history for future comparisons
 """
 
 import argparse
@@ -23,37 +21,34 @@ from datetime import datetime
 from email.email_handler import EmailHandler
 from email.config.email_config import ATTACHMENTS_TO_INCLUDE
 
-# Directorio de salida para reportes
+# Output directory for reports
 OUTPUT_DIR = "rvtools_reports"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Ruta del archivo de reporte Excel generado con fecha actual
+# Excel report file path with current date
 OUTPUT_FILE = os.path.join(
     OUTPUT_DIR, f"rvtools_report_{datetime.now().strftime('%Y%m%d')}.xlsx"
 )
 
-# Archivo que guarda el estado anterior para comparación
+# JSON file storing previous state for comparison
 PREVIOUS_STATE = os.path.join(OUTPUT_DIR, "rvtools_previous_state.json")
 
-# Configuración de datos del reporte
+# Report configuration
 ISSUE_CONFIG = {
     "title": "RVTools Infrastructure Issues Report",
     "generated_by": "RVTools automated check",
 }
 
-# -------------------------
-
 
 def load_sheet(file, sheet):
-    """
-    Carga una hoja específica de un archivo Excel.
+    """Load and return a specific sheet from an Excel file.
 
     Args:
-        file (str): Ruta del archivo Excel
-        sheet (str): Nombre de la hoja a cargar
+        file: Path to the Excel file
+        sheet: Sheet name to load
 
     Returns:
-        DataFrame: Datos de la hoja o None si ocurre un error
+        DataFrame with sheet data or None if error occurs
     """
     try:
         return pd.read_excel(file, sheet_name=sheet)
@@ -62,11 +57,10 @@ def load_sheet(file, sheet):
 
 
 def load_previous():
-    """
-    Carga el estado anterior guardado desde archivo JSON.
+    """Load previous state from JSON file.
 
     Returns:
-        dict: Estado anterior o diccionario vacío si no existe el archivo
+        dict: Previous state or empty dict if file doesn't exist
     """
     if os.path.exists(PREVIOUS_STATE):
         with open(PREVIOUS_STATE, "r") as f:
@@ -75,19 +69,22 @@ def load_previous():
 
 
 def save_current(state, state_file=PREVIOUS_STATE):
-    """
-    Guarda el estado actual en archivo JSON para futuras comparaciones.
+    """Save current state to JSON file for future comparisons.
 
     Args:
-        state (dict): Diccionario con el estado actual de anomalías
-        state_file (str): Ruta del archivo JSON de estado.
+        state: Dictionary with current anomalies state
+        state_file: Path to the JSON state file
     """
     with open(state_file, "w") as f:
         json.dump(state, f, indent=2)
 
 
 def resolve_latest_rvtools_file(path):
-    """Resolver archivo de entrada si path es directorio."""
+    """Resolve input file if path is a directory.
+    
+    Searches for .xlsx files and selects the newest by timestamp pattern
+    or modification time.
+    """
     if not os.path.isdir(path):
         return path
 
@@ -99,7 +96,7 @@ def resolve_latest_rvtools_file(path):
 
     if not entries:
         raise FileNotFoundError(
-            f"No se encontraron archivos .xlsx en el directorio {path}"
+            f"No .xlsx files found in directory {path}"
         )
 
     import re
@@ -130,24 +127,21 @@ def resolve_latest_rvtools_file(path):
     if matched:
         matched.sort(key=lambda x: x[0], reverse=True)
         chosen = matched[0][1]
-        print(f"Carpeta detectada, archivo elegido por nombre cronológico: {chosen}")
+        print(f"Directory detected, file selected by chronological name: {chosen}")
         return chosen
 
     entries.sort(key=lambda f: os.path.getmtime(f), reverse=True)
     chosen = entries[0]
-    print(f"Carpeta detectada, archivo elegido por fecha de modificación: {chosen}")
+    print(f"Directory detected, file selected by modification date: {chosen}")
     return chosen
 
 
-# --------- Inicialización de estado y anomalías ---------
+# State initialization and anomaly detection
 
 prev_state = load_previous()
 anomalies = {}
 
-# --------- Detección de anomalías en vHealth ---------
-
-
-# Helper
+# vHealth anomaly detection
 def get_col(*names, sheet=None):
     for n in names:
         if n in sheet.columns:
@@ -156,11 +150,7 @@ def get_col(*names, sheet=None):
 
 
 def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
-    """
-    Analiza la hoja vHealth del reporte RVTools para detecta anomalías.
-    """
-
-    vhealth = load_sheet(CURRENT_FILE, "vHealth")
+    """Analyze vHealth sheet from RVTools report for anomalies."""
     if vhealth is None or vhealth.empty:
         return
 
@@ -260,7 +250,7 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
         ].to_dict("records")
 
 
-# --------- Detección de anomalías en vPartition ---------
+# vPartition anomaly detection
 
 
 def check_vpartition(CURRENT_FILE, load_sheet, anomalies):
@@ -364,7 +354,7 @@ def check_report_age(file_path, anomalies, max_days=60):
         anomalies (dict): Diccionario de anomalías
         max_days (int): Número máximo de días permitidos (por defecto 60)
     """
-    # Obtener la fecha de modificación del archivo actual
+    # Get the modification date of the current file
     if not os.path.exists(file_path):
         return
 
@@ -383,7 +373,7 @@ def check_report_age(file_path, anomalies, max_days=60):
         ]
 
 
-# --------- Comparación con estado previo ---------
+# Compare with previous state
 
 
 def compare_previous(prev_state, anomalies):
@@ -415,7 +405,7 @@ def compare_previous(prev_state, anomalies):
     return new_anomalies
 
 
-# --------- Exportación en Excel ---------
+# Export to Excel
 
 
 def export_xls(output_file, anomalies):
@@ -445,7 +435,7 @@ def export_xls(output_file, anomalies):
     writer.close()
 
 
-# --------- Exportación en Markdown ---------
+# Export to Markdown
 
 
 def export_html(output_file, anomalies):
@@ -568,7 +558,7 @@ def export_markdown(output_file, anomalies):
         md += f"Last modified: {warning_item.get('last_modified', 'N/A')}\n\n"
         md += "---\n\n"
 
-    md += "## Resumen de Anomalías\n\n"
+    md += "## Anomalies Summary\n\n"
     md += "| Categoría | Cantidad |\n"
     md += "| --- | --- |\n"
 
@@ -579,9 +569,9 @@ def export_markdown(output_file, anomalies):
     md += f"\n**Total General:** {total_issues} anomalías detectadas\n\n"
     md += "---\n\n"
 
-    md += "## Detalle de Anomalías\n\n"
+    md += "## Anomalies Details\n\n"
 
-    # Detalle de cada anomalía
+    # Iterate through each anomaly type
     for issue_type, items in anomalies.items():
         md += format_issue_for_markdown(issue_type, items)
 
@@ -601,7 +591,7 @@ def format_issue_for_markdown(issue_type, items):
         str: Texto en formato Markdown
     """
     if not items:
-        return f"#### {issue_type.upper()}\n\nSin anomalías detectadas.\n\n"
+        return f"#### {issue_type.upper()}\n\nNo anomalies detected.\n\n"
 
     md = f"#### {issue_type.upper()} ({len(items)})\n\n"
 
@@ -611,7 +601,7 @@ def format_issue_for_markdown(issue_type, items):
         for item in items:
             all_columns.update(item.keys())
 
-        # Reorganizar columnas: primero las básicas, luego Message si existe, luego Annotation si existe
+        # Reorganize columns: basic first, then Message if exists, then Annotation if exists
         priority_order = [
             "Name",
             "VM",
@@ -810,7 +800,7 @@ def main():
     # Check report age
     check_report_age(CURRENT_FILE, anomalies)
 
-    # Leer estado previo según argumento si existe
+    # Load previous state from argument if it exists
     global prev_state
     if previous_state_file != PREVIOUS_STATE:
         # support custom state path without updating global constant permanently
@@ -890,5 +880,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # Ejecutar función principal
+    # Run main function
     main()
