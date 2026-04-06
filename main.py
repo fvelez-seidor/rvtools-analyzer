@@ -20,8 +20,8 @@ import json
 import os
 import sys
 from datetime import datetime
-import smtplib
-from email.message import EmailMessage
+from email.email_handler import EmailHandler
+from email.config.email_config import ATTACHMENTS_TO_INCLUDE
 
 # Directorio de salida para reportes
 OUTPUT_DIR = "rvtools_reports"
@@ -210,11 +210,17 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
 
     if "snapshot" in vhealth.columns:
         snapshots = vhealth[
-            vhealth["snapshot"].astype(str).str.contains("present", case=False, na=False)
+            vhealth["snapshot"]
+            .astype(str)
+            .str.contains("present", case=False, na=False)
         ]
 
         anomalies["snapshot_present"] = snapshots[
-            [c for c in ["name", "message", "snapshot", "age"] if c in snapshots.columns]
+            [
+                c
+                for c in ["name", "message", "snapshot", "age"]
+                if c in snapshots.columns
+            ]
         ].to_dict("records")
 
     if "cdrom" in vhealth.columns:
@@ -225,7 +231,7 @@ def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
         anomalies["cdrom_connected"] = cdrom[
             [c for c in ["name", "message", "cdrom"] if c in cdrom.columns]
         ].to_dict("records")
-    
+
     if "usb" in vhealth.columns:
         usb = vhealth[
             vhealth["usb"].astype(str).str.contains("connected", case=False, na=False)
@@ -485,8 +491,8 @@ def export_html(output_file, anomalies):
         warning_item = anomalies["old_report_warning"][0]
         html += f"""
       <div class="warning-box">
-        <strong>⚠️ WARNING: {warning_item.get('warning', 'Old report detected')}</strong><br>
-        Last modified: {warning_item.get('last_modified', 'N/A')}
+        <strong>⚠️ WARNING: {warning_item.get("warning", "Old report detected")}</strong><br>
+        Last modified: {warning_item.get("last_modified", "N/A")}
       </div>
     """
 
@@ -642,49 +648,52 @@ def format_issue_for_markdown(issue_type, items):
     return md
 
 
-def send_email_via_relay(
-    relay_host, sender, receiver, body, files=None, html_body=None
-):
-    # 1. Configuración del Relay
-    relay_port = 25
+def generate_email(anomalies: dict, new_anomalies: dict) -> bool:
+    """
+    Generate email template and metadata for ansible-email dispatcher.
 
-    # 2. Crear el mensaje
-    msg = EmailMessage()
-    msg["Subject"] = "RVTools: Resumen de anomalías y archivo de reporte"
-    msg["From"] = sender
-    msg["To"] = receiver
+    Args:
+        anomalies: All detected anomalies
+        new_anomalies: New anomalies since last run
 
-    # Establecer contenido en texto y HTML (si no se proporciona, se genera a partir del texto)
-    msg.set_content(body)
-    if html_body:
-        msg.add_alternative(html_body, subtype="html")
-    else:
-        fallback_html = "<html><body>"
-        fallback_html += f"<p>{body.replace(chr(10), '<br/>')}</p>"
-        fallback_html += "</body></html>"
-        msg.add_alternative(fallback_html, subtype="html")
+    Returns:
+        True if successful, False otherwise
+    """
+    handler = EmailHandler("rvtools-analyzer")
 
-    if files is not None:
-        for file in files:
-            with open(file, "rb") as f:
-                file_data = f.read()
-                file_name = f.name
-                msg.add_attachment(
-                    file_data,
-                    maintype="application",
-                    subtype="octet-stream",
-                    filename=file_name,
-                )
+    # Categorize issues
+    critical_cats = ["zombie", "low_disk_space_datastore", "low_disk_space_partition"]
+    critical_items = []
+    warning_items = []
+    new_items = []
 
-    # 3. Enviar sin login
-    try:
-        # Conexión directa al host y puerto especificados
-        with smtplib.SMTP(relay_host, relay_port) as server:
-            # Nota: No llamamos a server.login() porque el relay confía en tu IP
-            server.send_message(msg)
-        print("Correo enviado correctamente a través del relay.")
-    except Exception as e:
-        print(f"Error al conectar con el relay: {e}")
+    for key, items in anomalies.items():
+        if key in critical_cats and items:
+            critical_items.append(f"{key.replace('_', ' ').title()}: {len(items)}")
+        elif key != "old_report_warning" and items:
+            warning_items.append(f"{key.replace('_', ' ').title()}: {len(items)}")
+
+    for key, items in new_anomalies.items():
+        if items and key != "old_report_warning":
+            new_items.append(f"{key.replace('_', ' ').title()}: {len(items)} new")
+
+    total_issues = sum(len(v) for v in anomalies.values())
+
+    # Prepare template data
+    template_data = {
+        "total_issues": total_issues,
+        "critical_items": critical_items,
+        "warning_items": warning_items,
+        "new_items": new_items,
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    # Generate email with attachments
+    return handler.generate(
+        template_name="email_template.j2",
+        template_data=template_data,
+        attachments=ATTACHMENTS_TO_INCLUDE,
+    )
 
 
 def main():
@@ -769,27 +778,9 @@ def main():
     )
 
     parser.add_argument(
-        "--send-email",
+        "--generate-email",
         action="store_true",
-        help="Enviar notificación por email a través de relay interno.",
-    )
-
-    parser.add_argument(
-        "--email-relay",
-        default="192.168.1.100",
-        help="IP o hostname del relay SMTP para enviar email (usado con --send-email).",
-    )
-
-    parser.add_argument(
-        "--email-sender",
-        default="servidor@tudominio.com",
-        help="Dirección de correo del remitente (usado con --send-email).",
-    )
-
-    parser.add_argument(
-        "--email-receiver",
-        default="destino@ejemplo.com",
-        help="Dirección de correo del destinatario (usado con --send-email). Se pueden definir varios destinatarios separados por comas.",
+        help="Generate email template and metadata for ansible-email dispatcher",
     )
 
     args = parser.parse_args()
@@ -889,100 +880,13 @@ def main():
                 print("No hay nuevas anomalías")
             print()
 
-    if args.send_email:
-        files = [output_file, args.full_output, report_file]
-        print("\nEnviando notificación por email a través del relay...")
-
-        # Resumen de estadísticas para el cuerpo del correo
-        total_current = sum(len(v) for v in anomalies.values())
-        new_total = sum(len(v) for v in new_anomalies.values())
-
-        # Check for age warning
-        age_warning = ""
-        age_warning_html = ""
-        if "old_report_warning" in anomalies and anomalies["old_report_warning"]:
-            warning_item = anomalies["old_report_warning"][0]
-            age_warning = f"\n⚠️  WARNING: {warning_item.get('warning', 'Old report detected')}\nLast modified: {warning_item.get('last_modified', 'N/A')}\n"
-            age_warning_html = f"""
-          <div style="background-color: #fff3cd; border-left: 4px solid #ff9800; padding: 12px; margin-bottom: 16px; border-radius: 4px;">
-            <strong style="color: #8b0000;">⚠️ WARNING: {warning_item.get('warning', 'Old report detected')}</strong><br>
-            <span style="color: #8b0000;">Last modified: {warning_item.get('last_modified', 'N/A')}</span>
-          </div>
-        """
-
-        header_plain = "RVTools - Resumen de Anomalías\n"
-        header_plain += "========================================\n"
-        header_plain += f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        header_plain += age_warning
-        header_plain += f"\nTotal anomalías detectadas: {total_current}\n"
-        header_plain += f"Nuevas anomalías respecto al estado previo: {new_total}\n\n"
-
-        body_plain = header_plain
-        body_plain += "Resumen por categoría:\n"
-        for key, items in anomalies.items():
-            if key != "old_report_warning":
-                body_plain += f"- {key.upper():20}: {len(items)}\n"
-
-        body_plain += "\nDetalles completos en los archivos adjuntos:\n"
-        body_plain += f"- Ruta (nuevas anomalías): {output_file}\n"
-        body_plain += f"- Ruta (todas las anomalías): {args.full_output}\n"
-        body_plain += f"- Ruta (reporte legible): {report_file}\n"
-
-        body_plain += "\nPor favor revise primero el archivo de resumen en HTML y luego el XLSX completo para auditoría y seguimiento."
-
-        # Cuerpo HTML con tabla de resumen
-        rows_summary = ""
-        for key, items in anomalies.items():
-            if key == "old_report_warning":
-                continue
-            rows_summary += f"<tr><td>{key.upper()}</td><td>{len(items)}</td></tr>"
-
-        html_body = f"""
-        <!DOCTYPE html>
-        <html lang='es'>
-        <head>
-          <meta charset='UTF-8'>
-          <style>
-            body {{ font-family: Arial, sans-serif; line-height: 1.5; margin: 16px; }}
-            h1 {{ color: #1f4e79; }}
-            table {{ border-collapse: collapse; width: 100%; max-width: 800px; }}
-            th, td {{ border: 1px solid #a8c4e5; padding: 8px; }}
-            th {{ background-color: #dde9f7; text-align: left; }}
-            tr:nth-child(even) {{ background-color: #f6f9ff; }}
-          </style>
-        </head>
-        <body>
-          <h1>RVTools - Resumen de Anomalías</h1>
-          {age_warning_html}
-          <p><strong>Fecha:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
-          <p><strong>Total anomalías detectadas:</strong> {total_current}</p>
-          <p><strong>Nuevas anomalías:</strong> {new_total}</p>
-          <h2>Resumen por categoría</h2>
-          <table>
-            <thead><tr><th>Categoría</th><th>Cantidad</th></tr></thead>
-            <tbody>
-              {rows_summary}
-            </tbody>
-          </table>
-          <p>Detalles completos adjuntos en archivo XLSX y reporte legible.</p>
-          <ul>
-            <li>Excel nuevas: {output_file}</li>
-            <li>Excel completo: {args.full_output}</li>
-            <li>Reporte legible: {report_file}</li>
-          </ul>
-          <p>Por favor revisar primero el resumen y luego el detalle completo para auditoría.</p>
-        </body>
-        </html>
-        """
-
-        send_email_via_relay(
-            args.email_relay,
-            args.email_sender,
-            args.email_receiver,
-            body_plain,
-            files=files,
-            html_body=html_body,
-        )
+    # Generate email if requested
+    if args.generate_email:
+        print("\nGenerating email...")
+        if generate_email(anomalies, new_anomalies):
+            print("✅ Email preparation complete")
+        else:
+            print("❌ Email generation failed")
 
 
 if __name__ == "__main__":

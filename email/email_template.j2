@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; margin: 0; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { background-color: #2c3e50; color: white; padding: 20px; }
+        .header h1 { margin: 0 0 5px 0; font-size: 24px; }
+        .timestamp { font-size: 12px; opacity: 0.9; }
+        .content { background-color: #ecf0f1; padding: 20px; }
+        .box { background-color: white; margin: 10px 0; padding: 15px; border-left: 4px solid #e74c3c; }
+        .count { font-size: 32px; font-weight: bold; color: #e74c3c; }
+        .box-title { font-weight: bold; font-size: 14px; margin-bottom: 10px; }
+        .box-critical { border-left-color: #e74c3c; }
+        .box-warning { border-left-color: #f39c12; }
+        .box-new { border-left-color: #3498db; }
+        ul { margin: 5px 0; padding-left: 20px; }
+        li { margin: 5px 0; }
+        .footer { background-color: #34495e; color: white; padding: 10px; text-align: center; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔴 RVTools Issues Report</h1>
+            <p class="timestamp">{{ generated_at }}</p>
+        </div>
+
+        <div class="content">
+            <div style="text-align: center; margin: 20px 0;">
+                <p style="font-size: 12px; color: #7f8c8d; margin: 5px 0;">Issues Found</p>
+                <p class="count">{{ total_issues }}</p>
+            </div>
+
+            <!-- Critical Issues -->
+            {% if critical_items %}
+            <div class="box box-critical">
+                <div class="box-title">🔴 Critical ({{ critical_items|length }})</div>
+                <ul>
+                {% for item in critical_items %}
+                    <li>{{ item }}</li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Warning Issues -->
+            {% if warning_items %}
+            <div class="box box-warning">
+                <div class="box-title">⚡ Warnings ({{ warning_items|length }})</div>
+                <ul>
+                {% for item in warning_items %}
+                    <li>{{ item }}</li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- New Issues -->
+            {% if new_items %}
+            <div class="box box-new">
+                <div class="box-title">🆕 New Issues ({{ new_items|length }})</div>
+                <ul>
+                {% for item in new_items %}
+                    <li>{{ item }}</li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <p style="margin-top: 20px; font-size: 11px; color: #7f8c8d; text-align: center;">
+                Full details in attached reports
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>RVTools Analysis System</p>
+        </div>
+    </div>
+</body>
+</html>
