@@ -24,7 +24,7 @@ ATTACHMENTS_TO_INCLUDE = {
         "optional": False,
     },
     "previous_state": {
-        "source": "rvtools_reports/rvtools_previous_state.json",
+        "source": "../rvtools_previous_state.json",
         "optional": False,
     },
 }
