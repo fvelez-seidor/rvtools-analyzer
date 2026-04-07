@@ -28,43 +28,55 @@
         </div>
 
         <div class="content">
-            <div style="text-align: center; margin: 20px 0;">
-                <p style="font-size: 12px; color: #7f8c8d; margin: 5px 0;">Issues Found</p>
-                <p class="count">{{ total_issues }}</p>
+            <!-- Primary Status: New Issues -->
+            {% set total_new_items = new_items|length %}
+            {% if total_new_items == 0 %}
+            <div class="box" style="border-left-color: #27ae60; background-color: #e6ffe6; text-align: center;">
+                <p style="font-size: 32px; margin: 10px 0;">🟢</p>
+                <p style="font-size: 18px; font-weight: bold; color: #27ae60; margin: 5px 0;">No New Issues</p>
             </div>
-
-            <!-- Critical Issues -->
-            {% if critical_items %}
-            <div class="box box-critical">
-                <div class="box-title">🔴 Critical ({{ critical_items|length }})</div>
-                <ul>
-                {% for item in critical_items %}
-                    <li>{{ item }}</li>
-                {% endfor %}
-                </ul>
+            {% elif total_new_items <= 5 %}
+            <div class="box" style="border-left-color: #f39c12; background-color: #fff4e6; text-align: center;">
+                <p style="font-size: 32px; margin: 10px 0;">🟡</p>
+                <p style="font-size: 18px; font-weight: bold; color: #f39c12; margin: 5px 0;">{{ total_new_items }} New Issue{% if total_new_items > 1 %}s{% endif %} Found</p>
             </div>
-            {% endif %}
-
-            <!-- Warning Issues -->
-            {% if warning_items %}
-            <div class="box box-warning">
-                <div class="box-title">⚡ Warnings ({{ warning_items|length }})</div>
-                <ul>
-                {% for item in warning_items %}
-                    <li>{{ item }}</li>
-                {% endfor %}
-                </ul>
+            {% else %}
+            <div class="box" style="border-left-color: #e74c3c; background-color: #ffe6e6; text-align: center;">
+                <p style="font-size: 32px; margin: 10px 0;">🔴</p>
+                <p style="font-size: 18px; font-weight: bold; color: #e74c3c; margin: 5px 0;">{{ total_new_items }} New Issues Found</p>
             </div>
             {% endif %}
 
-            <!-- New Issues -->
+            <!-- New Issues Detail (if any) -->
             {% if new_items %}
             <div class="box box-new">
-                <div class="box-title">🆕 New Issues ({{ new_items|length }})</div>
+                <div class="box-title">🆕 New Issues Detected ({{ new_items|length }})</div>
                 <ul>
                 {% for item in new_items %}
                     <li>{{ item }}</li>
                 {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Previously Known Issues Summary -->
+            {% set known_critical = critical_items|length %}
+            {% set known_warnings = warning_items|length %}
+            {% set total_known = known_critical + known_warnings %}
+            {% if total_known > 0 %}
+            <div class="box" style="border-left-color: #95a5a6; background-color: #f8f9fa;">
+                <div class="box-title" style="color: #7f8c8d;">Previously Known Issues ({{ total_known }})</div>
+                <ul style="color: #7f8c8d;">
+                {% if critical_items %}
+                    {% for item in critical_items %}
+                    <li>🔴 {{ item }}</li>
+                    {% endfor %}
+                {% endif %}
+                {% if warning_items %}
+                    {% for item in warning_items %}
+                    <li>⚡ {{ item }}</li>
+                    {% endfor %}
+                {% endif %}
                 </ul>
             </div>
             {% endif %}
