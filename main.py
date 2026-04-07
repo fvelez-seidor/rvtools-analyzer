@@ -81,7 +81,7 @@ def save_current(state, state_file=PREVIOUS_STATE):
 
 def resolve_latest_rvtools_file(path):
     """Resolve input file if path is a directory.
-    
+
     Searches for .xlsx files and selects the newest by timestamp pattern
     or modification time.
     """
@@ -95,9 +95,7 @@ def resolve_latest_rvtools_file(path):
     ]
 
     if not entries:
-        raise FileNotFoundError(
-            f"No .xlsx files found in directory {path}"
-        )
+        raise FileNotFoundError(f"No .xlsx files found in directory {path}")
 
     import re
     from datetime import datetime
@@ -141,6 +139,7 @@ def resolve_latest_rvtools_file(path):
 prev_state = load_previous()
 anomalies = {}
 
+
 # vHealth anomaly detection
 def get_col(*names, sheet=None):
     for n in names:
@@ -151,7 +150,7 @@ def get_col(*names, sheet=None):
 
 def check_vhealth(CURRENT_FILE, load_sheet, anomalies):
     """Analyze vHealth sheet from RVTools report for anomalies."""
-    
+
     vhealth = load_sheet(CURRENT_FILE, "vHealth")
     if vhealth is None or vhealth.empty:
         return

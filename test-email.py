@@ -2,6 +2,7 @@ import argparse
 import smtplib
 from email.message import EmailMessage
 
+
 def send_email_via_relay(relay_host, sender, receiver, body, file_path=None):
     # 1. Configuración del Relay
     # Reemplaza con la IP o hostname de tu relay y el puerto (usualmente 25 o 587)
@@ -17,7 +18,12 @@ def send_email_via_relay(relay_host, sender, receiver, body, file_path=None):
     with open(file_path, "rb") as f:
         file_data = f.read()
         file_name = f.name
-        msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
+        msg.add_attachment(
+            file_data,
+            maintype="application",
+            subtype="octet-stream",
+            filename=file_name,
+        )
 
     # 3. Enviar sin login
     try:
@@ -28,6 +34,7 @@ def send_email_via_relay(relay_host, sender, receiver, body, file_path=None):
         print("Correo enviado correctamente a través del relay.")
     except Exception as e:
         print(f"Error al conectar con el relay: {e}")
+
 
 parser = argparse.ArgumentParser(
     description="Analiza reportes RVTools y detecta anomalías"
@@ -42,4 +49,9 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-send_email_via_relay("10.245.12.22", "noreply@seidor.net", args.email_receiver, "Este es un mensaje de prueba.")
+send_email_via_relay(
+    "10.245.12.22",
+    "noreply@seidor.net",
+    args.email_receiver,
+    "Este es un mensaje de prueba.",
+)
