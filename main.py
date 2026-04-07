@@ -18,8 +18,8 @@ import json
 import os
 import sys
 from datetime import datetime
-from email.email_handler import EmailHandler
-from email.config.email_config import ATTACHMENTS_TO_INCLUDE
+from email_utils.email_handler import EmailHandler
+from email_utils.config.email_config import ATTACHMENTS_TO_INCLUDE
 
 # Output directory for reports
 OUTPUT_DIR = "rvtools_reports"
