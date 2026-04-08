@@ -739,7 +739,7 @@ def main():
 
     parser.add_argument(
         "--markdown",
-        default=os.path.join(OUTPUT_DIR, "current_issues.md"),
+        default=os.path.join(OUTPUT_DIR, f"current_issues_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.md"),
         help="Ruta del reporte Markdown generado.",
     )
 
@@ -758,7 +758,7 @@ def main():
 
     parser.add_argument(
         "--full-output",
-        default=os.path.join(OUTPUT_DIR, "rvtools_report_full.xlsx"),
+        default=os.path.join(OUTPUT_DIR, f"rvtools_report_full_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"),
         help="Ruta del reporte XLSX completo con todas las anomalías.",
     )
 
