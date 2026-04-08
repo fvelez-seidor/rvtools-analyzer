@@ -745,7 +745,7 @@ def main():
 
     parser.add_argument(
         "--html",
-        default=os.path.join(OUTPUT_DIR, "current_issues.html"),
+        default=os.path.join(OUTPUT_DIR, f"current_issues_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.html"),
         help="Ruta del reporte HTML generado.",
     )
 
