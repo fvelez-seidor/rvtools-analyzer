@@ -18,6 +18,8 @@ import json
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
+from jinja2 import Environment, FileSystemLoader
 from email_utils.email_handler import EmailHandler
 from email_utils.config.email_config import ATTACHMENTS_TO_INCLUDE
 
@@ -439,98 +441,126 @@ def export_xls(output_file, anomalies):
 # Export to Markdown
 
 
-def export_html(output_file, anomalies):
+def export_html(output_file, anomalies, new_anomalies=None):
     """
-    Genera un reporte completo en formato HTML con todas las anomalías.
+    Genera un reporte HTML usando el template Jinja2.
 
     Args:
         output_file (str): Ruta del archivo HTML a generar
         anomalies (dict): Diccionario con todas las anomalías detectadas
+        new_anomalies (dict, optional): Diccionario con nuevas anomalías
+    """
+    if new_anomalies is None:
+        new_anomalies = {}
+
+    # Categorize issues
+    critical_cats = ["zombie", "low_disk_space_datastore", "low_disk_space_partition"]
+    critical_items = []
+    warning_items = []
+    new_items = []
+
+    for key, items in anomalies.items():
+        if key in critical_cats and items:
+            critical_items.append(f"{key.replace('_', ' ').title()}: {len(items)}")
+        elif key != "old_report_warning" and items:
+            warning_items.append(f"{key.replace('_', ' ').title()}: {len(items)}")
+
+    for key, items in new_anomalies.items():
+        if items and key != "old_report_warning":
+            new_items.append(f"{key.replace('_', ' ').title()}: {len(items)} new")
+
+    total_issues = sum(len(v) for v in anomalies.values())
+
+    # Prepare template data
+    template_data = {
+        "total_issues": total_issues,
+        "critical_items": critical_items,
+        "warning_items": warning_items,
+        "new_items": new_items,
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    # Setup Jinja2 environment to load from email_utils directory
+    template_dir = Path(__file__).parent / "email_utils"
+    env = Environment(loader=FileSystemLoader(str(template_dir)))
+
+    try:
+        template = env.get_template("email_template.j2")
+        html_content = template.render(**template_data)
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(html_content)
+    except Exception as e:
+        print(f"Error rendering HTML template: {e}")
+        # Fallback to simple HTML generation
+        _export_html_fallback(output_file, anomalies)
+
+
+def _export_html_fallback(output_file, anomalies):
+    """
+    Fallback function to generate simple HTML if template rendering fails.
+
+    Args:
+        output_file (str): Path to output HTML file
+        anomalies (dict): Dictionary with all detected anomalies
     """
     total_issues = sum(len(v) for v in anomalies.values())
 
-    html = """
-    <!DOCTYPE html>
-    <html lang='es'>
-    <head>
-      <meta charset='UTF-8'>
-      <title>{title}</title>
-      <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; margin: 24px; }}
-        h1,h2,h3,h4 {{ color: #2a4365; }}
-        table {{ border-collapse: collapse; width: 100%; margin-bottom: 22px; }}
-        th,td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }}
-        th {{ background: #f2f7ff; }}
-        tr:nth-child(even) {{ background: #f8faff; }}
-        .warning-row {{ background-color: #fff3cd !important; }}
-        .warning-cell {{ color: #8b0000; font-weight: bold; }}
-        .warning-box {{ background-color: #fff3cd; border-left: 4px solid #ff9800; padding: 12px; margin-bottom: 16px; border-radius: 4px; }}
-      </style>
-    </head>
-    <body>
-      <h1>{title}</h1>
-      <p><strong>Fecha de Generación:</strong> {date}</p>
-      <p><strong>Generado por:</strong> {generated_by}</p>
-    """.format(
-        title=ISSUE_CONFIG["title"],
-        date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        generated_by=ISSUE_CONFIG["generated_by"],
-    )
+    html = """<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='UTF-8'>
+  <title>RVTools Issues Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color: #333; line-height: 1.6; margin: 24px; background: #f5f5f5; }
+    .container { max-width: 900px; margin: 0 auto; background: white; padding: 32px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    h1 { color: #4158D9; border-bottom: 2px solid #5079F2; padding-bottom: 12px; }
+    h2 { color: #4158D9; margin-top: 24px; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th { background: #F2F2F2; border: 1px solid #ddd; padding: 12px; text-align: left; font-weight: 600; color: #4158D9; }
+    td { border: 1px solid #ddd; padding: 10px; }
+    tr:nth-child(even) { background: #fafafa; }
+    .warning-row { background-color: #fffbf6 !important; }
+    .critical-row { background-color: #fef9f9 !important; }
+    .warning-box { background-color: #fffaf0; border-left: 4px solid #f39c12; padding: 12px; margin: 16px 0; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 RVTools Issues Report</h1>
+    <p><strong>Generated:</strong> {date}</p>
+""".format(date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-    # Show warning box if old report
-    if "old_report_warning" in anomalies and anomalies["old_report_warning"]:
-        warning_item = anomalies["old_report_warning"][0]
-        html += f"""
-      <div class="warning-box">
-        <strong>⚠️ WARNING: {warning_item.get("warning", "Old report detected")}</strong><br>
-        Last modified: {warning_item.get("last_modified", "N/A")}
-      </div>
-    """
-
-    html += f"""
-      <h2>Resumen de Anomalías</h2>
-      <p>Total: <strong>{total_issues}</strong></p>
-      <table>
-        <thead><tr><th>Categoría</th><th>Cantidad</th></tr></thead>
-        <tbody>
-    """
+    html += f"    <h2>Summary</h2>\n    <p>Total Issues: <strong>{total_issues}</strong></p>\n"
+    html += "    <table><thead><tr><th>Category</th><th>Count</th></tr></thead><tbody>\n"
 
     for issue_type, items in anomalies.items():
-        if issue_type == "old_report_warning":
-            html += f"<tr class='warning-row'><td class='warning-cell'>{issue_type.upper()}</td><td class='warning-cell'>{len(items)}</td></tr>\n"
-        else:
-            html += f"<tr><td>{issue_type.upper()}</td><td>{len(items)}</td></tr>\n"
+        html += f"      <tr><td>{issue_type.upper()}</td><td>{len(items)}</td></tr>\n"
 
-    html += "</tbody></table>\n"
-
-    html += "<h2>Detalles</h2>\n"
+    html += "    </tbody></table>\n"
 
     for issue_type, items in anomalies.items():
-        is_warning = issue_type == "old_report_warning"
-        html += f"<h3>{issue_type.upper()} ({len(items)})</h3>\n"
+        html += f"    <h2>{issue_type.upper()}</h2>\n"
         if not items:
-            html += "<p>Sin anomalías detectadas.</p>\n"
+            html += "    <p>No anomalies detected.</p>\n"
             continue
 
+        html += "    <table><thead><tr>"
         columns = sorted({k for item in items for k in item.keys()})
-
-        html += "<table><thead><tr>"
         for col in columns:
             html += f"<th>{col}</th>"
         html += "</tr></thead><tbody>\n"
 
         for item in items:
-            row_class = " class='warning-row'" if is_warning else ""
-            html += f"<tr{row_class}>"
+            html += "      <tr>"
             for col in columns:
                 value = str(item.get(col, "")).replace("\n", " ")
-                cell_class = " class='warning-cell'" if is_warning else ""
-                html += f"<td{cell_class}>{value}</td>"
+                html += f"<td>{value}</td>"
             html += "</tr>\n"
 
-        html += "</tbody></table>\n"
+        html += "    </tbody></table>\n"
 
-    html += "</body></html>"
+    html += "  </div>\n</body>\n</html>"
 
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(html)
@@ -817,7 +847,7 @@ def main():
 
     report_format = args.report_format.lower()
     if report_format == "html":
-        export_html(args.html, anomalies)
+        export_html(args.html, anomalies, new_anomalies)
         report_file = args.html
         print(f"Reporte HTML: {report_file}")
     else:

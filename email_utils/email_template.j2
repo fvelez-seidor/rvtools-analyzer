@@ -1,93 +1,411 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RVTools Analysis Report</title>
     <style>
-        body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; margin: 0; }
-        .container { max-width: 600px; margin: 0 auto; }
-        .header { background-color: #2c3e50; color: white; padding: 20px; }
-        .header h1 { margin: 0 0 5px 0; font-size: 24px; }
-        .timestamp { font-size: 12px; opacity: 0.9; }
-        .content { background-color: #ecf0f1; padding: 20px; }
-        .box { background-color: white; margin: 10px 0; padding: 15px; border-left: 4px solid #e74c3c; }
-        .count { font-size: 32px; font-weight: bold; color: #e74c3c; }
-        .box-title { font-weight: bold; font-size: 14px; margin-bottom: 10px; }
-        .box-critical { border-left-color: #e74c3c; }
-        .box-warning { border-left-color: #f39c12; }
-        .box-new { border-left-color: #3498db; }
-        ul { margin: 5px 0; padding-left: 20px; }
-        li { margin: 5px 0; }
-        .footer { background-color: #34495e; color: white; padding: 10px; text-align: center; font-size: 11px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Header Section */
+        .header {
+            background: linear-gradient(135deg, #4158D9 0%, #5079F2 100%);
+            color: #ffffff;
+            padding: 32px 24px;
+            text-align: left;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .header-subtitle {
+            font-size: 13px;
+            opacity: 0.95;
+            font-weight: 400;
+        }
+
+        .timestamp {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 12px;
+        }
+
+        /* Content Section */
+        .content {
+            padding: 32px 24px;
+        }
+
+        /* Status Box */
+        .status-box {
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+        }
+
+        .status-box.critical {
+            background-color: #fef0f0;
+            border-color: #e74c3c;
+        }
+
+        .status-box.warning {
+            background-color: #fffaf0;
+            border-color: #f39c12;
+        }
+
+        .status-box.success {
+            background-color: #f0fef0;
+            border-color: #27ae60;
+        }
+
+        .status-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+
+        .status-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .status-box.critical .status-title {
+            color: #e74c3c;
+        }
+
+        .status-box.warning .status-title {
+            color: #f39c12;
+        }
+
+        .status-box.success .status-title {
+            color: #27ae60;
+        }
+
+        .status-subtitle {
+            font-size: 13px;
+            color: #666;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 32px;
+            padding: 20px;
+            background-color: #F2F2F2;
+            border-radius: 8px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #4158D9;
+        }
+
+        /* Issue Section */
+        .issue-section {
+            margin-bottom: 20px;
+        }
+
+        .issue-box {
+            background-color: #ffffff;
+            border-left: 4px solid #5079F2;
+            padding: 18px;
+            margin-bottom: 16px;
+            border-radius: 4px;
+            border: 1px solid #f0f0f0;
+            border-left: 4px solid #5079F2;
+        }
+
+        .issue-box.critical {
+            border-left-color: #e74c3c;
+            background-color: #fef9f9;
+        }
+
+        .issue-box.warning {
+            border-left-color: #f39c12;
+            background-color: #fffbf6;
+        }
+
+        .issue-box.new {
+            border-left-color: #5C9DF2;
+            background-color: #f8fbff;
+        }
+
+        .issue-box.known {
+            border-left-color: #95a5a6;
+            background-color: #f9f9f9;
+        }
+
+        .issue-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .issue-box.critical .issue-title {
+            color: #e74c3c;
+        }
+
+        .issue-box.warning .issue-title {
+            color: #f39c12;
+        }
+
+        .issue-box.new .issue-title {
+            color: #5C9DF2;
+        }
+
+        .issue-box.known .issue-title {
+            color: #666;
+        }
+
+        .issue-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .issue-list li {
+            padding: 6px 0;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #555;
+        }
+
+        .issue-list li strong {
+            color: #333;
+            font-weight: 600;
+        }
+
+        .issue-count {
+            display: inline-block;
+            background-color: #4158D9;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 8px;
+        }
+
+        .issue-box.critical .issue-count {
+            background-color: #e74c3c;
+        }
+
+        .issue-box.warning .issue-count {
+            background-color: #f39c12;
+        }
+
+        .issue-box.new .issue-count {
+            background-color: #5C9DF2;
+        }
+
+        /* Footer Section */
+        .footer {
+            background-color: #F2F2F2;
+            color: #666;
+            padding: 20px 24px;
+            text-align: center;
+            font-size: 12px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .footer-text {
+            margin: 4px 0;
+        }
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background-color: #e0e0e0;
+            margin: 24px 0;
+        }
+
+        /* Utilities */
+        .text-muted {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 6px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            margin-right: 6px;
+        }
+
+        @media (max-width: 600px) {
+            .stats-section {
+                flex-direction: column;
+            }
+
+            .stat-item {
+                margin-bottom: 16px;
+            }
+
+            .header {
+                padding: 24px 16px;
+            }
+
+            .content {
+                padding: 24px 16px;
+            }
+
+            .footer {
+                padding: 16px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <h1>🔴 RVTools Issues Report</h1>
-            <p class="timestamp">{{ generated_at }}</p>
+            <h1>📊 RVTools Analysis Report</h1>
+            <div class="header-subtitle">Infrastructure Health Assessment</div>
+            <div class="timestamp">Generated: {{ generated_at }}</div>
         </div>
 
         <div class="content">
-            <!-- Primary Status: New Issues -->
-            {% set total_new_items = new_items|length %}
-            {% if total_new_items == 0 %}
-            <div class="box" style="border-left-color: #27ae60; background-color: #e6ffe6; text-align: center;">
-                <p style="font-size: 32px; margin: 10px 0;">🟢</p>
-                <p style="font-size: 18px; font-weight: bold; color: #27ae60; margin: 5px 0;">No New Issues</p>
-            </div>
-            {% elif total_new_items <= 5 %}
-            <div class="box" style="border-left-color: #f39c12; background-color: #fff4e6; text-align: center;">
-                <p style="font-size: 32px; margin: 10px 0;">🟡</p>
-                <p style="font-size: 18px; font-weight: bold; color: #f39c12; margin: 5px 0;">{{ total_new_items }} New Issue{% if total_new_items > 1 %}s{% endif %} Found</p>
-            </div>
+            <!-- Status Summary -->
+            {% set total_new = new_items|length %}
+            {% if total_new == 0 %}
+                <div class="status-box success">
+                    <div class="status-icon">✓</div>
+                    <div class="status-title">All Systems Healthy</div>
+                    <div class="status-subtitle">No new issues detected in this analysis</div>
+                </div>
+            {% elif total_new <= 3 %}
+                <div class="status-box warning">
+                    <div class="status-icon">⚠</div>
+                    <div class="status-title">{{ total_new }} Issue{% if total_new > 1 %}s{% endif %} Detected</div>
+                    <div class="status-subtitle">Review detailed findings below</div>
+                </div>
             {% else %}
-            <div class="box" style="border-left-color: #e74c3c; background-color: #ffe6e6; text-align: center;">
-                <p style="font-size: 32px; margin: 10px 0;">🔴</p>
-                <p style="font-size: 18px; font-weight: bold; color: #e74c3c; margin: 5px 0;">{{ total_new_items }} New Issues Found</p>
-            </div>
+                <div class="status-box critical">
+                    <div class="status-icon">⚠</div>
+                    <div class="status-title">{{ total_new }} New Issue{% if total_new > 1 %}s{% endif %} Found</div>
+                    <div class="status-subtitle">Requiring attention and action</div>
+                </div>
             {% endif %}
 
-            <!-- New Issues Detail (if any) -->
-            {% if new_items %}
-            <div class="box box-new">
-                <div class="box-title">🆕 New Issues Detected ({{ new_items|length }})</div>
-                <ul>
-                {% for item in new_items %}
-                    <li>{{ item }}</li>
-                {% endfor %}
-                </ul>
+            <!-- Statistics -->
+            <div class="stats-section">
+                <div class="stat-item">
+                    <div class="stat-label">Total Issues</div>
+                    <div class="stat-value">{{ total_issues }}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">New This Run</div>
+                    <div class="stat-value" style="color: #5C9DF2;">{{ total_new }}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Previously Known</div>
+                    <div class="stat-value" style="color: #95a5a6;">{{ total_issues - total_new }}</div>
+                </div>
             </div>
+
+            <!-- New Issues -->
+            {% if new_items|length > 0 %}
+                <div class="issue-section">
+                    <div class="issue-box new">
+                        <div class="issue-title">
+                            🆕 New Issues Detected
+                            <span class="issue-count">{{ new_items|length }}</span>
+                        </div>
+                        <ul class="issue-list">
+                            {% for item in new_items %}
+                                <li><strong>{{ item }}</strong></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
             {% endif %}
 
-            <!-- Previously Known Issues Summary -->
-            {% set known_critical = critical_items|length %}
-            {% set known_warnings = warning_items|length %}
-            {% set total_known = known_critical + known_warnings %}
-            {% if total_known > 0 %}
-            <div class="box" style="border-left-color: #95a5a6; background-color: #f8f9fa;">
-                <div class="box-title" style="color: #7f8c8d;">Previously Known Issues ({{ total_known }})</div>
-                <ul style="color: #7f8c8d;">
-                {% if critical_items %}
-                    {% for item in critical_items %}
-                    <li>🔴 {{ item }}</li>
-                    {% endfor %}
-                {% endif %}
-                {% if warning_items %}
-                    {% for item in warning_items %}
-                    <li>⚡ {{ item }}</li>
-                    {% endfor %}
-                {% endif %}
-                </ul>
-            </div>
+            <!-- Critical Items -->
+            {% if critical_items|length > 0 %}
+                <div class="issue-section">
+                    <div class="issue-box critical">
+                        <div class="issue-title">
+                            🔴 Critical Issues
+                            <span class="issue-count">{{ critical_items|length }}</span>
+                        </div>
+                        <ul class="issue-list">
+                            {% for item in critical_items %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
             {% endif %}
 
-            <p style="margin-top: 20px; font-size: 11px; color: #7f8c8d; text-align: center;">
-                Full details in attached reports
+            <!-- Warning Items -->
+            {% if warning_items|length > 0 %}
+                <div class="issue-section">
+                    <div class="issue-box warning">
+                        <div class="issue-title">
+                            ⚡ Warning Issues
+                            <span class="issue-count">{{ warning_items|length }}</span>
+                        </div>
+                        <ul class="issue-list">
+                            {% for item in warning_items %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Info Footer -->
+            <div class="divider"></div>
+            <p class="text-muted" style="text-align: center;">
+                Full detailed analysis available in attached reports. Review and take appropriate action on critical issues.
             </p>
         </div>
 
+        <!-- Footer -->
         <div class="footer">
-            <p>RVTools Analysis System</p>
+            <p class="footer-text"><strong>RVTools Analysis System</strong></p>
+            <p class="footer-text">Infrastructure monitoring and health assessment</p>
         </div>
     </div>
 </body>
