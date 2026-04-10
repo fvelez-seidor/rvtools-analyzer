@@ -306,6 +306,118 @@
         </div>
 
         <div class="content">
+            <!-- Multi-host mode detection and rendering -->
+            {% if hosts %}
+                <!-- Multi-Host Report Mode -->
+                {% set total_new_all = total_new %}
+                
+                <!-- Overall Status Summary -->
+                {% if total_new_all == 0 %}
+                    <div class="status-box success">
+                        <div class="status-icon">✓</div>
+                        <div class="status-title">All Hosts Healthy</div>
+                        <div class="status-subtitle">No new issues detected across any hosts</div>
+                    </div>
+                {% elif total_new_all <= 5 %}
+                    <div class="status-box warning">
+                        <div class="status-icon">⚠</div>
+                        <div class="status-title">{{ total_new_all }} Issue{% if total_new_all > 1 %}s{% endif %} Detected</div>
+                        <div class="status-subtitle">Review findings below per host</div>
+                    </div>
+                {% else %}
+                    <div class="status-box critical">
+                        <div class="status-icon">⚠</div>
+                        <div class="status-title">{{ total_new_all }} New Issue{% if total_new_all > 1 %}s{% endif %} Found</div>
+                        <div class="status-subtitle">Requiring attention and action</div>
+                    </div>
+                {% endif %}
+
+                <!-- Overall Statistics -->
+                <div class="stats-section">
+                    <div class="stat-item">
+                        <div class="stat-label">Total Hosts</div>
+                        <div class="stat-value">{{ hosts|length }}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Total Issues</div>
+                        <div class="stat-value">{{ total_issues }}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">New This Run</div>
+                        <div class="stat-value" style="color: #374ACB;">{{ total_new_all }}</div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Per-Host Sections -->
+                {% for host in hosts %}
+                    <div class="issue-section" style="margin-top: 32px;">
+                        <h2 style="color: #374ACB; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #e0e0e0;">
+                            🖥️ {{ host.hostname }}
+                        </h2>
+                        
+                        <!-- Host Statistics -->
+                        <div class="stats-section">
+                            <div class="stat-item">
+                                <div class="stat-label">Host Issues</div>
+                                <div class="stat-value">{{ host.total_issues }}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">New This Run</div>
+                                <div class="stat-value" style="color: #374ACB;">{{ host.total_new }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Host New Issues -->
+                        {% if host.new_items|length > 0 %}
+                            <div class="issue-box new" style="margin-top: 16px;">
+                                <div class="issue-title">
+                                    🆕 New Issues
+                                    <span class="issue-count">{{ host.new_items|length }}</span>
+                                </div>
+                                <ul class="issue-list">
+                                    {% for item in host.new_items %}
+                                        <li><strong>{{ item }}</strong></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        <!-- Host Critical Issues -->
+                        {% if host.critical_items|length > 0 %}
+                            <div class="issue-box critical" style="margin-top: 12px;">
+                                <div class="issue-title">
+                                    🔴 Critical Issues
+                                    <span class="issue-count">{{ host.critical_items|length }}</span>
+                                </div>
+                                <ul class="issue-list">
+                                    {% for item in host.critical_items %}
+                                        <li>{{ item }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        <!-- Host Warning Issues -->
+                        {% if host.warning_items|length > 0 %}
+                            <div class="issue-box warning" style="margin-top: 12px;">
+                                <div class="issue-title">
+                                    ⚡ Warning Issues
+                                    <span class="issue-count">{{ host.warning_items|length }}</span>
+                                </div>
+                                <ul class="issue-list">
+                                    {% for item in host.warning_items %}
+                                        <li>{{ item }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            
+            {% else %}
+                <!-- Single-Host Report Mode (Original) -->
             <!-- Status Summary -->
             {% set total_new = new_items|length %}
             {% if total_new == 0 %}
@@ -393,6 +505,8 @@
                         </ul>
                     </div>
                 </div>
+            {% endif %}
+            
             {% endif %}
 
             <!-- Info Footer -->
