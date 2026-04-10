@@ -1234,6 +1234,28 @@ def main():
             new_total = sum(len(v) for v in host_new_anomalies.values())
             print(f"{hostname:20} : {total} total, {new_total} new")
         
+        # Generate email if requested (aggregate anomalies from all hosts)
+        if args.generate_email:
+            aggregated_anomalies = {}
+            aggregated_new_anomalies = {}
+            
+            for hostname, (host_anomalies, host_new_anomalies) in hosts_results.items():
+                for key, items in host_anomalies.items():
+                    if key not in aggregated_anomalies:
+                        aggregated_anomalies[key] = []
+                    aggregated_anomalies[key].extend(items)
+                
+                for key, items in host_new_anomalies.items():
+                    if key not in aggregated_new_anomalies:
+                        aggregated_new_anomalies[key] = []
+                    aggregated_new_anomalies[key].extend(items)
+            
+            print("\nGenerating email...")
+            if generate_email(aggregated_anomalies, aggregated_new_anomalies):
+                print("✅ Email preparation complete")
+            else:
+                print("❌ Email generation failed")
+        
         sys.exit(0)
     
     # Single-host mode (original logic)
