@@ -60,44 +60,9 @@ uv run main.py
 python main.py
 ```
 
-### Modos de Procesamiento
-
-#### Modo Single-Host (Tradicional)
-
-Procesa un único archivo RVTools:
-
-```powershell
-uv run main.py RVTools_export.xlsx --html report.html
-```
-
-#### Modo Multi-Host Recursivo (Nuevo)
-
-Busca recursivamente archivos xlsx organizados por hostname en subdirectorios:
-
-```powershell
-uv run main.py /path/to/rvtools_export_output_dir --recursive --html report.html
-```
-
-Este modo:
-- Encuentra automáticamente todas las carpetas de hostname
-- Procesa cada archivo xlsx independientemente
-- Genera un reporte HTML unificado con secciones por host
-- Mantiene estado separado para cada hostname (`host_states/`)
-
-Ejemplo de estructura de directorios esperada:
-```
-rvtools_export_output_dir/
-├── host1/
-│   └── rvtools_host1_2026-04-10_06.15.xlsx
-├── host2/
-│   └── rvtools_host2_2026-04-10_06.15.xlsx
-└── host3/
-    └── rvtools_host3_2026-04-10_06.15.xlsx
-```
-
 ## 📊 Entrada
 
-El script requiere archivos Excel con reportes de RVTools que contengan las siguientes hojas:
+El script requiere un archivo Excel con reportes de RVTools que contenga las siguientes hojas:
 
 - **vHealth** - Información de salud de las máquinas virtuales
 - **vPartition** - Información de particiones y almacenamiento
@@ -109,14 +74,6 @@ El script genera reportes en la carpeta `rvtools_reports/`:
 - **rvtools_report_YYYYMMDD.xlsx** - Reporte en Excel con detalles de anomalías
 - **rvtools_previous_state.json** - Historial del estado anterior (para comparaciones futuras)
 - **current_issues.md** - Resumen de problemas actuales en formato Markdown
-- **current_issues.html** - Reporte HTML con formato visual (por defecto)
-- **host_states/** - (Modo multi-host) Archivos de estado por hostname
-
-En modo multi-host, el reporte HTML contiene:
-- Resumen general de anomalías agregadas
-- Sección dedicada para cada hostname
-- Estadísticas independientes por host (total de issues, issues nuevos, críticos, etc.)
-- Historial de estado mantenido separadamente para cada host
 
 ## 📝 Estructura del Proyecto
 
@@ -127,13 +84,8 @@ Scripts/
 ├── README.md                        # Este archivo
 └── rvtools_reports/                # Carpeta de salida
     ├── rvtools_report_*.xlsx        # Reportes generados
-    ├── rvtools_previous_state.json  # Historial de estado (single-host)
-    ├── current_issues.html          # Reporte HTML
-    ├── current_issues.md            # Reporte Markdown
-    └── host_states/                 # Estado por hostname (multi-host)
-        ├── host1_state.json
-        ├── host2_state.json
-        └── host3_state.json
+    ├── rvtools_previous_state.json  # Historial de estado
+    └── current_issues.md            # Resumen de problemas
 ```
 
 ## 🔧 Configuración
