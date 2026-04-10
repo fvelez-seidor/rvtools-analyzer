@@ -84,8 +84,8 @@ def save_current(state, state_file=PREVIOUS_STATE):
 def resolve_latest_rvtools_file(path):
     """Resolve input file if path is a directory.
 
-    Searches for .xlsx files and selects the newest by timestamp pattern
-    or modification time.
+    Searches for .xlsx files in the immediate directory and selects the newest by timestamp pattern
+    or modification time. For recursive multi-host search, use --recursive flag.
     """
     if not os.path.isdir(path):
         return path
