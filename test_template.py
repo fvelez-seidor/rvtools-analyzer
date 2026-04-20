@@ -15,16 +15,10 @@ template_data = {
     "critical_items": [
         "Zombie Processes: 2",
         "Low Disk Space (Datastore): 3",
-        "Low Disk Space (Partition): 1"
+        "Low Disk Space (Partition): 1",
     ],
-    "warning_items": [
-        "CDRom Connected: 4",
-        "VMtools Issue: 2"
-    ],
-    "new_items": [
-        "Snapshot Present: 1 new",
-        "USB Connected: 2 new"
-    ],
+    "warning_items": ["CDRom Connected: 4", "VMtools Issue: 2"],
+    "new_items": ["Snapshot Present: 1 new", "USB Connected: 2 new"],
     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
 }
 

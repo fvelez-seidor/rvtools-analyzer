@@ -532,7 +532,9 @@ def _export_html_fallback(output_file, anomalies):
 """.format(date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     html += f"    <h2>Summary</h2>\n    <p>Total Issues: <strong>{total_issues}</strong></p>\n"
-    html += "    <table><thead><tr><th>Category</th><th>Count</th></tr></thead><tbody>\n"
+    html += (
+        "    <table><thead><tr><th>Category</th><th>Count</th></tr></thead><tbody>\n"
+    )
 
     for issue_type, items in anomalies.items():
         html += f"      <tr><td>{issue_type.upper()}</td><td>{len(items)}</td></tr>\n"
@@ -769,13 +771,19 @@ def main():
 
     parser.add_argument(
         "--markdown",
-        default=os.path.join(OUTPUT_DIR, f"current_issues_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.md"),
+        default=os.path.join(
+            OUTPUT_DIR,
+            f"current_issues_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.md",
+        ),
         help="Ruta del reporte Markdown generado.",
     )
 
     parser.add_argument(
         "--html",
-        default=os.path.join(OUTPUT_DIR, f"current_issues_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.html"),
+        default=os.path.join(
+            OUTPUT_DIR,
+            f"current_issues_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.html",
+        ),
         help="Ruta del reporte HTML generado.",
     )
 
@@ -788,7 +796,10 @@ def main():
 
     parser.add_argument(
         "--full-output",
-        default=os.path.join(OUTPUT_DIR, f"rvtools_report_full_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"),
+        default=os.path.join(
+            OUTPUT_DIR,
+            f"rvtools_report_full_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx",
+        ),
         help="Ruta del reporte XLSX completo con todas las anomalías.",
     )
 
