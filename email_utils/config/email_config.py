@@ -25,6 +25,6 @@ ATTACHMENTS_TO_INCLUDE = {
     },
     "previous_state": {
         "source": "/var/lib/semaphore/exports/rvtools_analyzer/rvtools_previous_state.json",
-        "optional": False,
+        "optional": True,
     },
 }

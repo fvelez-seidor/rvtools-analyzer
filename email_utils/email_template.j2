@@ -5,407 +5,141 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RVTools Analysis Report</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 650px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-
-        /* Header Section */
-        .header {
-            background: linear-gradient(135deg, #374ACB 0%, #4C6AF0 14%, #62A5FE 28%, #6AC5FE 42%, #75CDFF 57%, #C7EAFE 71%, #FDFEFF 100%);
-            color: #000000;
-            padding: 32px 24px;
-            text-align: left;
-        }
-
-        .header h1 {
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
-        }
-
-        .header-subtitle {
-            font-size: 13px;
-            opacity: 0.95;
-            font-weight: 400;
-        }
-
-        .timestamp {
-            font-size: 12px;
-            opacity: 0.85;
-            margin-top: 12px;
-        }
-
-        /* Content Section */
-        .content {
-            padding: 32px 24px;
-        }
-
-        /* Status Box */
-        .status-box {
-            padding: 24px;
-            border-radius: 8px;
-            margin-bottom: 24px;
-            border: 1px solid #e0e0e0;
-            text-align: center;
-        }
-
-        .status-box.critical {
-            background-color: #fef0f0;
-            border-color: #e74c3c;
-        }
-
-        .status-box.warning {
-            background-color: #fffaf0;
-            border-color: #f39c12;
-        }
-
-        .status-box.success {
-            background-color: #f0fef0;
-            border-color: #27ae60;
-        }
-
-        .status-icon {
-            font-size: 40px;
-            margin-bottom: 12px;
-        }
-
-        .status-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .status-box.critical .status-title {
-            color: #e74c3c;
-        }
-
-        .status-box.warning .status-title {
-            color: #f39c12;
-        }
-
-        .status-box.success .status-title {
-            color: #27ae60;
-        }
-
-        .status-subtitle {
-            font-size: 13px;
-            color: #666;
-        }
-
-        /* Stats Section */
-        .stats-section {
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 32px;
-            padding: 20px;
-            background-color: #F2F2F2;
-            border-radius: 8px;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            font-weight: 500;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: #374ACB;
-        }
-
-        /* Issue Section */
-        .issue-section {
-            margin-bottom: 20px;
-        }
-
-        .issue-box {
-            background-color: #ffffff;
-            border-left: 4px solid #374ACB;
-            padding: 18px;
-            margin-bottom: 16px;
-            border-radius: 4px;
-            border: 1px solid #f0f0f0;
-            border-left: 4px solid #374ACB;
-        }
-
-        .issue-box.critical {
-            border-left-color: #e74c3c;
-            background-color: #fef9f9;
-        }
-
-        .issue-box.warning {
-            border-left-color: #f39c12;
-            background-color: #fffbf6;
-        }
-
-        .issue-box.new {
-            border-left-color: #374ACB;
-            background-color: #f8fbff;
-        }
-
-        .issue-box.known {
-            border-left-color: #95a5a6;
-            background-color: #f9f9f9;
-        }
-
-        .issue-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: #333;
-        }
-
-        .issue-box.critical .issue-title {
-            color: #e74c3c;
-        }
-
-        .issue-box.warning .issue-title {
-            color: #f39c12;
-        }
-
-        .issue-box.new .issue-title {
-            color: #374ACB;
-        }
-
-        .issue-box.known .issue-title {
-            color: #666;
-        }
-
-        .issue-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .issue-list li {
-            padding: 6px 0;
-            font-size: 13px;
-            line-height: 1.5;
-            color: #555;
-        }
-
-        .issue-list li strong {
-            color: #333;
-            font-weight: 600;
-        }
-
-        .issue-count {
-            display: inline-block;
-            background-color: #374ACB;
-            color: white;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 12px;
-            margin-left: 8px;
-        }
-
-        .issue-box.critical .issue-count {
-            background-color: #e74c3c;
-        }
-
-        .issue-box.warning .issue-count {
-            background-color: #f39c12;
-        }
-
-        .issue-box.new .issue-count {
-            background-color: #374ACB;
-        }
-
-        /* Footer Section */
-        .footer {
-            background-color: #F2F2F2;
-            color: #666;
-            padding: 20px 24px;
-            text-align: center;
-            font-size: 12px;
-            border-top: 1px solid #e0e0e0;
-        }
-
-        .footer-text {
-            margin: 4px 0;
-        }
-
-        /* Divider */
-        .divider {
-            height: 1px;
-            background-color: #e0e0e0;
-            margin: 24px 0;
-        }
-
-        /* Utilities */
-        .text-muted {
-            color: #999;
-            font-size: 12px;
-        }
-
-        .badge {
-            display: inline-block;
-            font-size: 11px;
-            padding: 2px 6px;
-            background-color: #f0f0f0;
-            border-radius: 3px;
-            margin-right: 6px;
-        }
-
-        @media (max-width: 600px) {
-            .stats-section {
-                flex-direction: column;
-            }
-
-            .stat-item {
-                margin-bottom: 16px;
-            }
-
-            .header {
-                padding: 24px 16px;
-            }
-
-            .content {
-                padding: 24px 16px;
-            }
-
-            .footer {
-                padding: 16px;
-            }
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color: #f5f5f5; color: #333; line-height: 1.6; }
+        .container { max-width: 750px; margin: 20px auto; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); border-radius: 8px; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #374ACB 0%, #62A5FE 100%); color: white; padding: 32px 24px; text-align: left; }
+        .header h1 { font-size: 24px; margin-bottom: 8px; }
+        .header-subtitle { font-size: 14px; opacity: 0.9; }
+        .content { padding: 24px; }
+        .status-box { padding: 20px; border-radius: 6px; margin-bottom: 24px; text-align: center; border: 1px solid #ddd; }
+        .status-box.success { background-color: #f0fef0; border-color: #27ae60; color: #27ae60; }
+        .status-box.warning { background-color: #fffaf0; border-color: #f39c12; color: #f39c12; }
+        .status-box.critical { background-color: #fef0f0; border-color: #e74c3c; color: #e74c3c; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #f9f9f9; padding: 16px; border-radius: 6px; text-align: center; border: 1px solid #eee; }
+        .stat-label { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #374ACB; }
+        .section-title { font-size: 18px; font-weight: 600; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #eee; }
+        .issue-group { margin-bottom: 16px; border: 1px solid #eee; border-radius: 6px; overflow: hidden; }
+        .group-header { background: #fcfcfc; padding: 10px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .group-label { font-weight: 600; font-size: 14px; }
+        .group-count { background: #374ACB; color: white; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+        .critical .group-count { background: #e74c3c; }
+        .warning .group-count { background: #f39c12; }
+        .item-list { list-style: none; }
+        .item-row { padding: 8px 15px; border-bottom: 1px solid #f9f9f9; font-size: 13px; }
+        .item-row:last-child { border-bottom: none; }
+        .item-row strong { color: #333; }
+        .item-detail { font-size: 12px; color: #666; margin-top: 2px; }
+        .footer { background-color: #f9f9f9; color: #666; padding: 20px; text-align: center; font-size: 12px; border-top: 1px solid #eee; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
-            <h1>📊 RVTools Analysis Report</h1>
-            <div class="header-subtitle">Infrastructure Health Assessment</div>
-            <div class="timestamp">Generated: {{ generated_at }}</div>
+            <h1>📊 RVTools Infrastructure Report</h1>
+            <div class="header-subtitle">Health Assessment Generated on {{ generated_at }}</div>
         </div>
 
         <div class="content">
-            <!-- Status Summary -->
-            {% set total_new = new_items|length %}
+            {% set total_new = new_summary|sum(attribute='count') %}
             {% if total_new == 0 %}
                 <div class="status-box success">
-                    <div class="status-icon">✓</div>
-                    <div class="status-title">All Systems Healthy</div>
-                    <div class="status-subtitle">No new issues detected in this analysis</div>
-                </div>
-            {% elif total_new <= 3 %}
-                <div class="status-box warning">
-                    <div class="status-icon">⚠</div>
-                    <div class="status-title">{{ total_new }} Issue{% if total_new > 1 %}s{% endif %} Detected</div>
-                    <div class="status-subtitle">Review detailed findings below</div>
+                    <h3>✓ No New Issues</h3>
+                    <p>Infrastructure state is consistent with previous analysis.</p>
                 </div>
             {% else %}
                 <div class="status-box critical">
-                    <div class="status-icon">⚠</div>
-                    <div class="status-title">{{ total_new }} New Issue{% if total_new > 1 %}s{% endif %} Found</div>
-                    <div class="status-subtitle">Requiring attention and action</div>
+                    <h3>⚠ {{ total_new }} New Issues Detected</h3>
+                    <p>Review the details below and take appropriate action.</p>
                 </div>
             {% endif %}
 
-            <!-- Statistics -->
-            <div class="stats-section">
-                <div class="stat-item">
-                    <div class="stat-label">Total Issues</div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Anomalies</div>
                     <div class="stat-value">{{ total_issues }}</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-label">New This Run</div>
-                    <div class="stat-value" style="color: #374ACB;">{{ total_new }}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Previously Known</div>
-                    <div class="stat-value" style="color: #95a5a6;">{{ total_issues - total_new }}</div>
+                <div class="stat-card">
+                    <div class="stat-label">New Since Last Run</div>
+                    <div class="stat-value" style="color: #e74c3c;">{{ total_new }}</div>
                 </div>
             </div>
 
-            <!-- New Issues -->
-            {% if new_items|length > 0 %}
-                <div class="issue-section">
-                    <div class="issue-box new">
-                        <div class="issue-title">
-                            🆕 New Issues Detected
-                            <span class="issue-count">{{ new_items|length }}</span>
-                        </div>
-                        <ul class="issue-list">
-                            {% for item in new_items %}
-                                <li><strong>{{ item }}</strong></li>
-                            {% endfor %}
-                        </ul>
-                    </div>
+            {% if new_summary %}
+            <h2 class="section-title" style="color: #374ACB;">🆕 New Anomalies</h2>
+            {% for group in new_summary %}
+            <div class="issue-group new">
+                <div class="group-header">
+                    <span class="group-label">{{ group.label }}</span>
+                    <span class="group-count">{{ group.count }}</span>
                 </div>
+                <ul class="item-list">
+                    {% for item in group.issue_list %}
+                    <li class="item-row">
+                        <strong>{{ item.name or item.vm or 'Unknown' }}</strong>
+                        <div class="item-detail">
+                            {% if item.message %}{{ item.message }}{% endif %}
+                            {% if item.disk %}| Disk: {{ item.disk }}{% endif %}
+                            {% if item.free_percent %}| Free: {{ item.free_percent }}%{% endif %}
+                            {% if item['free_%'] %}| Free: {{ item['free_%'] }}%{% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
             {% endif %}
 
-            <!-- Critical Items -->
-            {% if critical_items|length > 0 %}
-                <div class="issue-section">
-                    <div class="issue-box critical">
-                        <div class="issue-title">
-                            🔴 Critical Issues
-                            <span class="issue-count">{{ critical_items|length }}</span>
-                        </div>
-                        <ul class="issue-list">
-                            {% for item in critical_items %}
-                                <li>{{ item }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
+            {% if critical_summary %}
+            <h2 class="section-title" style="color: #e74c3c;">🔴 Critical Issues (All)</h2>
+            {% for group in critical_summary %}
+            <div class="issue-group critical">
+                <div class="group-header">
+                    <span class="group-label">{{ group.label }}</span>
+                    <span class="group-count">{{ group.count }}</span>
                 </div>
+                <ul class="item-list">
+                    {% for item in group.issue_list %}
+                    <li class="item-row">
+                        <strong>{{ item.name or item.vm or 'Unknown' }}</strong>
+                        <div class="item-detail">
+                            {% if item.message %}{{ item.message }}{% endif %}
+                            {% if item.disk %}| Disk: {{ item.disk }}{% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                    {% if group.count > 5 %}<li class="item-row" style="color: #999;">... and {{ group.count - 5 }} more (see attached report)</li>{% endif %}
+                </ul>
+            </div>
+            {% endfor %}
             {% endif %}
 
-            <!-- Warning Items -->
-            {% if warning_items|length > 0 %}
-                <div class="issue-section">
-                    <div class="issue-box warning">
-                        <div class="issue-title">
-                            ⚡ Warning Issues
-                            <span class="issue-count">{{ warning_items|length }}</span>
-                        </div>
-                        <ul class="issue-list">
-                            {% for item in warning_items %}
-                                <li>{{ item }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
+            {% if warning_summary %}
+            <h2 class="section-title" style="color: #f39c12;">⚡ Warning Issues (All)</h2>
+            {% for group in warning_summary %}
+            <div class="issue-group warning">
+                <div class="group-header">
+                    <span class="group-label">{{ group.label }}</span>
+                    <span class="group-count">{{ group.count }}</span>
                 </div>
+                <ul class="item-list">
+                    {% for item in group.issue_list %}
+                    <li class="item-row">
+                        <strong>{{ item.name or item.vm or 'Unknown' }}</strong>
+                    </li>
+                    {% endfor %}
+                    {% if group.count > 5 %}<li class="item-row" style="color: #999;">... and {{ group.count - 5 }} more</li>{% endif %}
+                </ul>
+            </div>
+            {% endfor %}
             {% endif %}
-
-            <!-- Info Footer -->
-            <div class="divider"></div>
-            <p class="text-muted" style="text-align: center;">
-                Full detailed analysis available in attached reports. Review and take appropriate action on critical issues.
-            </p>
         </div>
 
-        <!-- Footer -->
         <div class="footer">
-            <p class="footer-text"><strong>RVTools Analysis System</strong></p>
-            <p class="footer-text">Infrastructure monitoring and health assessment</p>
+            <p><strong>RVTools Analysis System</strong></p>
+            <p>Full detailed reports are attached to this email.</p>
         </div>
     </div>
 </body>
