@@ -103,7 +103,7 @@ def resolve_latest_rvtools_file(path):
     from datetime import datetime
 
     pattern = re.compile(
-        r"^rvtools_(?P<prefix>.+?)_(?P<year>\d{4})-(?P<mon>\d{2})-(?P<day>\d{2})_(?P<hour>\d{2})\.(?P<min>\d{2})\.xlsx$",
+        r"^(?:rvtools_(?P<prefix>.+?)_(?P<year>\d{4})-(?P<mon>\d{2})-(?P<day>\d{2})_(?P<hour>\d{2})\.(?P<min>\d{2})|rvtools_export_(?P<year>\d{4})(?P<mon>\d{2})(?P<day>\d{2})_(?P<hour>\d{2})(?P<min>\d{2})(?P<sec>\d{2}))\.xlsx$",
         re.IGNORECASE,
     )
 
@@ -119,6 +119,7 @@ def resolve_latest_rvtools_file(path):
                     int(m.group("day")),
                     int(m.group("hour")),
                     int(m.group("min")),
+                    int(m.group("sec")) if m.group("sec") else 0,
                 )
                 matched.append((ts, p))
             except ValueError:
