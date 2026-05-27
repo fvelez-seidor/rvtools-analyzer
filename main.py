@@ -102,24 +102,43 @@ def resolve_latest_rvtools_file(path):
     import re
     from datetime import datetime
 
-    pattern = re.compile(
-        r"^(?:rvtools_(?P<prefix>.+?)_(?P<year>\d{4})-(?P<mon>\d{2})-(?P<day>\d{2})_(?P<hour>\d{2})\.(?P<min>\d{2})|rvtools_export_(?P<year>\d{4})(?P<mon>\d{2})(?P<day>\d{2})_(?P<hour>\d{2})(?P<min>\d{2})(?P<sec>\d{2}))\.xlsx$",
+    pattern1 = re.compile(
+        r"^rvtools_(?P<prefix>.+?)_(?P<year1>\d{4})-(?P<mon1>\d{2})-(?P<day1>\d{2})_(?P<hour1>\d{2})\.(?P<min1>\d{2})\.xlsx$",
+        re.IGNORECASE,
+    )
+    pattern2 = re.compile(
+        r"^rvtools_export_(?P<year2>\d{4})(?P<mon2>\d{2})(?P<day2>\d{2})_(?P<hour2>\d{2})(?P<min2>\d{2})(?P<sec2>\d{2})\.xlsx$",
         re.IGNORECASE,
     )
 
     matched = []
     for p in entries:
         name = os.path.basename(p)
-        m = pattern.match(name)
+        m = pattern1.match(name)
         if m:
             try:
                 ts = datetime(
-                    int(m.group("year")),
-                    int(m.group("mon")),
-                    int(m.group("day")),
-                    int(m.group("hour")),
-                    int(m.group("min")),
-                    int(m.group("sec")) if m.group("sec") else 0,
+                    int(m.group("year1")),
+                    int(m.group("mon1")),
+                    int(m.group("day1")),
+                    int(m.group("hour1")),
+                    int(m.group("min1")),
+                )
+                matched.append((ts, p))
+            except ValueError:
+                continue
+            continue
+
+        m = pattern2.match(name)
+        if m:
+            try:
+                ts = datetime(
+                    int(m.group("year2")),
+                    int(m.group("mon2")),
+                    int(m.group("day2")),
+                    int(m.group("hour2")),
+                    int(m.group("min2")),
+                    int(m.group("sec2")),
                 )
                 matched.append((ts, p))
             except ValueError:
